@@ -14,10 +14,11 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/40 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-10">
         <a href="/" className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.7)]" />
+
           <span className="text-sm font-semibold uppercase tracking-[0.25em] text-zinc-100">
             Alpha<span className="text-emerald-400">Edge</span> AI
           </span>
@@ -38,14 +39,14 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           <a
             href="/login"
-            className="rounded-lg border border-zinc-700 px-5 py-2 text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-900/60"
+            className="rounded-lg border border-zinc-700 px-5 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900"
           >
             Login
           </a>
 
           <a
             href="/get-started"
-            className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-black shadow-[0_0_20px_-6px_rgba(52,211,153,0.7)] transition-all duration-200 hover:bg-emerald-400 hover:shadow-[0_0_30px_-6px_rgba(52,211,153,0.9)]"
+            className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
           >
             Get Started
           </a>
@@ -53,40 +54,24 @@ export function Navbar() {
 
         <button
           type="button"
-          onClick={() => setIsMenuOpen((prev) => !prev)}
           aria-label="Toggle navigation menu"
           aria-expanded={isMenuOpen}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 text-zinc-200 transition-colors duration-200 hover:border-zinc-600 md:hidden"
+          onClick={() => setIsMenuOpen((current) => !current)}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 text-zinc-200 md:hidden"
         >
-          <span className="relative flex h-4 w-4 flex-col items-center justify-center">
-            <span
-              className={`absolute h-px w-4 bg-current transition-all duration-200 ${
-                isMenuOpen ? "rotate-45" : "-translate-y-1.5"
-              }`}
-            />
-            <span
-              className={`absolute h-px w-4 bg-current transition-opacity duration-200 ${
-                isMenuOpen ? "opacity-0" : "opacity-100"
-              }`}
-            />
-            <span
-              className={`absolute h-px w-4 bg-current transition-all duration-200 ${
-                isMenuOpen ? "-rotate-45" : "translate-y-1.5"
-              }`}
-            />
-          </span>
+          <span className="text-lg">{isMenuOpen ? "×" : "☰"}</span>
         </button>
       </div>
 
       {isMenuOpen && (
-        <div className="border-t border-white/5 bg-black/80 backdrop-blur-xl md:hidden">
+        <div className="border-t border-white/5 bg-black/95 md:hidden">
           <nav className="flex flex-col gap-1 px-6 py-4">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 transition-colors duration-200 hover:bg-zinc-900/60 hover:text-white"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-900 hover:text-white"
               >
                 {link.label}
               </a>
@@ -95,14 +80,14 @@ export function Navbar() {
             <div className="mt-3 flex flex-col gap-2 border-t border-white/5 pt-3">
               <a
                 href="/login"
-                className="rounded-lg border border-zinc-700 px-4 py-2 text-center text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-900/60"
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-center text-sm font-medium text-zinc-200"
               >
                 Login
               </a>
 
               <a
                 href="/get-started"
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-center text-sm font-semibold text-black transition-all duration-200 hover:bg-emerald-400"
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-center text-sm font-semibold text-black"
               >
                 Get Started
               </a>

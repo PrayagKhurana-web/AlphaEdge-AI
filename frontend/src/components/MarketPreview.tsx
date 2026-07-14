@@ -7,13 +7,13 @@ const MARKET_ITEMS = [
 
 export function MarketPreview() {
   return (
-    <section className="relative z-10 border-y border-white/5 bg-zinc-950/50 backdrop-blur">
+    <section className="relative z-10 border-y border-white/5 bg-zinc-950/70">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-white/5 md:grid-cols-4">
         {MARKET_ITEMS.map((item) => {
           const isPositive = item.change.startsWith("+");
 
           return (
-            <div key={item.name} className="bg-black/70 px-5 py-5">
+            <article key={item.name} className="bg-black/80 px-5 py-5">
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
                 {item.name}
               </p>
@@ -31,7 +31,7 @@ export function MarketPreview() {
                   {item.change}
                 </p>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
