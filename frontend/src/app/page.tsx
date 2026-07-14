@@ -1,6 +1,8 @@
 import { Background } from "@/components/Background";
-import { Hero } from "@/components/Hero";
 import { Navbar } from "@/components/Navbar";
+import { Hero } from "@/components/Hero";
+import { MarketPreview } from "@/components/MarketPreview";
+import { FeatureCards } from "@/components/FeatureCards";
 
 export default function Home() {
   return (
@@ -8,6 +10,8 @@ export default function Home() {
       <Background />
       <Navbar />
       <Hero />
+      <MarketPreview />
+      <FeatureCards />
     </main>
   );
 }
