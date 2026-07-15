@@ -5,15 +5,17 @@ tracking capability.
 This file is the composition point where concrete infrastructure
 implementations (YahooFinanceProvider, InMemoryMarketDataCache) are bound
 to the application-layer ports they satisfy, and assembled into the single
-GetMarketIndicesSnapshotService instance that api/routes.py (File 9)
-depends on. No route handler should ever import YahooFinanceProvider or
+GetMarketIndicesSnapshotService instance that api/routes.py depends on. No
+route handler should ever import YahooFinanceProvider or
 InMemoryMarketDataCache directly -- they depend only on the service
 returned by get_market_indices_snapshot_service() below, per
 PROJECT_CONTEXT.md's Clean Architecture dependency rule.
 
-request_timeout_seconds and cache_ttl_seconds are module-level constants
-for Sprint 3. File 10 will move these into the application's configuration
-module -- this file does not import configuration yet, by design.
+request_timeout_seconds and cache_ttl_seconds are read from the
+application's central Settings (app.core.config.get_settings()) rather
+than hardcoded here, so they can be overridden per environment via
+MARKET_DATA_REQUEST_TIMEOUT_SECONDS / MARKET_DATA_CACHE_TTL_SECONDS
+environment variables.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
+from app.core.config import get_settings
 from app.modules.market_data.application.ports import (
     MarketDataCachePort,
     MarketDataProviderPort,
@@ -36,12 +39,6 @@ from app.modules.market_data.infrastructure.cache import InMemoryMarketDataCache
 from app.modules.market_data.infrastructure.providers.yahoo_finance_provider import (
     YahooFinanceProvider,
 )
-
-# Sprint 3 placeholder constants. File 10 replaces these with values read
-# from the application's configuration module -- kept here, not imported,
-# so this file has no configuration dependency yet.
-_REQUEST_TIMEOUT_SECONDS: float = 10.0
-_CACHE_TTL_SECONDS: int = 30
 
 # Module-level singleton state. These are intentionally created at most
 # once per process and reused across every request, rather than per
@@ -73,6 +70,10 @@ async def _get_or_create_service() -> GetMarketIndicesSnapshotService:
     market_data_lifespan()'s startup phase, rather than lazily on the
     first request -- the lazy path remains as a safety net for any caller
     that resolves the dependency outside the lifespan-managed app.
+
+    Settings are resolved via get_settings() (itself a singleton getter,
+    so this does not re-parse environment variables on every call) once,
+    inside the lock, at construction time.
     """
     global _http_client, _cache, _provider, _service
 
@@ -83,16 +84,18 @@ async def _get_or_create_service() -> GetMarketIndicesSnapshotService:
         if _service is not None:
             return _service
 
+        settings = get_settings()
+
         _http_client = httpx.AsyncClient()
         _cache = InMemoryMarketDataCache()
         _provider = YahooFinanceProvider(
             http_client=_http_client,
-            request_timeout_seconds=_REQUEST_TIMEOUT_SECONDS,
+            request_timeout_seconds=settings.market_data_request_timeout_seconds,
         )
         _service = GetMarketIndicesSnapshotService(
             provider=_provider,
             cache=_cache,
-            cache_ttl_seconds=_CACHE_TTL_SECONDS,
+            cache_ttl_seconds=settings.market_data_cache_ttl_seconds,
         )
         return _service
 
@@ -145,9 +148,8 @@ async def market_data_lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     FastAPI lifespan context manager for the market_data module.
 
-    Intended to be wired into the application's lifespan handling in
-    backend/app/main.py (a main.py-level change outside this module's
-    scope) so that:
+    Wired into the application's composed lifespan in backend/app/main.py
+    so that:
       - this module's shared AsyncClient/cache/provider/service are
         constructed once during application startup, rather than lazily
         on the first request; and

@@ -2,20 +2,29 @@
 Yahoo Finance implementation of MarketDataProviderPort.
 
 This is the only file in the market_data module that knows Yahoo Finance's
-quote endpoint URL, its request/response shape, or its field names --
-every other layer depends solely on MarketDataProviderPort and this
-module's own domain entities/exceptions. Swapping to a different upstream
-provider later means adding a new class here that satisfies the same port;
-it requires no change to application/services.py or the API layer.
+endpoint URL(s), request/response shape, or field names -- every other
+layer depends solely on MarketDataProviderPort and this module's own
+domain entities/exceptions. Swapping to a different upstream provider
+later means adding a new class here that satisfies the same port; it
+requires no change to application/services.py or the API layer.
+
+Endpoint note: this adapter uses Yahoo Finance's chart endpoint
+(/v8/finance/chart/{symbol}) rather than the batch quote endpoint
+(/v7/finance/quote), because the batch endpoint now returns HTTP 401 for
+unauthenticated callers. The chart endpoint accepts exactly one symbol per
+request, so get_quotes() fetches all requested symbols concurrently via
+asyncio.gather rather than in a single batched call.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Final
+from typing import Any, Final, NoReturn
+from urllib.parse import quote
 
 import httpx
 
@@ -31,11 +40,14 @@ from app.modules.market_data.domain.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-# Yahoo Finance's batch quote endpoint. Kept private to this adapter --
-# no other file in the codebase should ever reference this URL.
-_QUOTE_ENDPOINT_URL: Final[str] = "https://query1.finance.yahoo.com/v7/finance/quote"
+# Yahoo Finance's per-symbol chart endpoint. Kept private to this adapter
+# -- no other file in the codebase should ever reference this URL.
+_CHART_ENDPOINT_URL_TEMPLATE: Final[str] = (
+    "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+)
+_CHART_QUERY_PARAMS: Final[dict[str, str]] = {"interval": "1m", "range": "1d"}
 
-# A browser-like User-Agent is required; Yahoo's endpoint rejects requests
+# A browser-like User-Agent is required; Yahoo's endpoints reject requests
 # that look like a bare script client.
 _REQUEST_HEADERS: Final[dict[str, str]] = {
     "User-Agent": (
@@ -53,15 +65,12 @@ _SYMBOL_TO_YAHOO: Final[dict[IndexSymbol, str]] = {
     IndexSymbol.BANK_NIFTY: "^NSEBANK",
     IndexSymbol.INDIA_VIX: "^INDIAVIX",
 }
-_YAHOO_TO_SYMBOL: Final[dict[str, IndexSymbol]] = {
-    yahoo_symbol: index_symbol for index_symbol, yahoo_symbol in _SYMBOL_TO_YAHOO.items()
-}
 
 
 class YahooFinanceProvider(MarketDataProviderPort):
     """
     MarketDataProviderPort implementation backed by Yahoo Finance's public
-    batch quote endpoint, accessed directly over HTTP (no yfinance
+    per-symbol chart endpoint, accessed directly over HTTP (no yfinance
     dependency).
 
     A single httpx.AsyncClient is injected via the constructor and reused
@@ -99,7 +108,8 @@ class YahooFinanceProvider(MarketDataProviderPort):
         Fetches a single index's current quote.
 
         Delegates to get_quotes() with a single-element list so there is
-        exactly one code path that talks to Yahoo Finance.
+        exactly one code path that talks to Yahoo Finance and exactly one
+        place error-priority selection is implemented.
 
         Raises:
             SymbolNotFoundError: if `symbol` is not in this adapter's
@@ -111,65 +121,95 @@ class YahooFinanceProvider(MarketDataProviderPort):
                 parsed into a valid quote for this symbol.
         """
         quotes = await self.get_quotes([symbol])
-        quote = quotes.get(symbol)
-        if quote is None:
+        quote_value = quotes.get(symbol)
+        if quote_value is None:
             raise InvalidQuoteDataError(
                 f"No valid quote data was returned for symbol {symbol!r}.",
                 provider_name=type(self).__name__,
                 symbol=symbol,
             )
-        return quote
+        return quote_value
 
     async def get_quotes(
         self, symbols: Sequence[IndexSymbol]
     ) -> Mapping[IndexSymbol, IndexQuote]:
         """
-        Fetches quotes for multiple indices in a single batched request to
-        Yahoo Finance's quote endpoint, which accepts a comma-separated
-        `symbols` query parameter and returns all of them in one response.
+        Fetches quotes for multiple indices concurrently, one HTTP request
+        per symbol (the chart endpoint does not support batching), via
+        asyncio.gather(..., return_exceptions=True).
 
         See MarketDataProviderPort.get_quotes for the full contract this
         method must honor; this implementation follows it exactly:
         unsupported symbols raise SymbolNotFoundError before any HTTP call
-        is made, transport-level failures raise the corresponding
-        ProviderError subclass, and per-symbol parsing failures are
-        omitted from the result unless every requested symbol fails to
-        parse, in which case InvalidQuoteDataError is raised. Only symbols
-        that were actually requested can appear in the returned mapping --
-        any unrelated entry Yahoo might include in its response is
-        discarded.
+        is made, a single symbol's failure never discards other symbols'
+        successful quotes, and if every requested symbol fails, one
+        aggregate domain exception is raised, chosen by priority
+        (rate limit > timeout > unavailable > invalid data) among the
+        collected per-symbol failures.
+
+        Cancellation safety: if any child task's result is an
+        asyncio.CancelledError (i.e. that task was cancelled -- typically
+        because the surrounding request/task was itself cancelled),
+        cancellation is re-raised immediately rather than being treated as
+        an ordinary provider failure or folded into InvalidQuoteDataError.
+        Swallowing a CancelledError here would break the surrounding
+        task's ability to actually stop.
         """
         if not symbols:
             return {}
 
-        requested_symbols = frozenset(symbols)
         unique_symbols = list(dict.fromkeys(symbols))
         self._validate_all_supported(unique_symbols)
 
-        yahoo_symbols = [_SYMBOL_TO_YAHOO[symbol] for symbol in unique_symbols]
-        raw_results = await self._fetch_raw_quotes(yahoo_symbols)
+        fetch_tasks = [
+            self._fetch_quote_for_symbol(symbol, _SYMBOL_TO_YAHOO[symbol])
+            for symbol in unique_symbols
+        ]
+        results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
 
         quotes: dict[IndexSymbol, IndexQuote] = {}
-        for raw_quote in raw_results:
-            parsed = self._try_parse_quote(raw_quote)
-            if parsed is None:
+        failures: list[Exception] = []
+        for symbol, result in zip(unique_symbols, results):
+            if isinstance(result, asyncio.CancelledError):
+                # Cancellation must propagate, never be treated as a
+                # provider failure or converted into a domain exception.
+                raise result
+            if isinstance(result, IndexQuote):
+                quotes[symbol] = result
                 continue
-            index_symbol, quote = parsed
-            # Defense in depth: only keep entries for symbols that were
-            # actually requested, even though _YAHOO_TO_SYMBOL should
-            # already guarantee this -- an unrequested index must never
-            # leak into the result.
-            if index_symbol in requested_symbols:
-                quotes[index_symbol] = quote
-
-        if not quotes:
-            raise InvalidQuoteDataError(
-                "No valid quotes could be parsed from the provider response "
-                f"for requested symbols: {unique_symbols!r}.",
-                provider_name=type(self).__name__,
+            if isinstance(result, Exception):
+                logger.warning(
+                    "market_data: failed to fetch quote for %r: %s",
+                    symbol,
+                    result,
+                )
+                failures.append(result)
+                continue
+            # Defensive fallback: some other BaseException subtype that is
+            # neither CancelledError nor a plain Exception. This should not
+            # occur in practice, since _fetch_quote_for_symbol only raises
+            # this module's own Exception-derived domain exceptions, but
+            # this branch avoids ever treating an unrecognized
+            # BaseException as an ordinary failure without accounting for
+            # it explicitly.
+            logger.warning(
+                "market_data: unexpected failure type for symbol %r: %s",
+                symbol,
+                type(result).__name__,
+            )
+            failures.append(
+                InvalidQuoteDataError(
+                    f"Unexpected failure type {type(result).__name__!r} "
+                    f"while fetching symbol {symbol!r}.",
+                    provider_name=type(self).__name__,
+                    symbol=symbol,
+                )
             )
 
-        return quotes
+        if quotes:
+            return quotes
+
+        self._raise_aggregate_error(failures, unique_symbols)
 
     def _validate_all_supported(self, symbols: Sequence[IndexSymbol]) -> None:
         """
@@ -182,39 +222,78 @@ class YahooFinanceProvider(MarketDataProviderPort):
             if symbol not in _SYMBOL_TO_YAHOO:
                 raise SymbolNotFoundError(symbol)
 
-    async def _fetch_raw_quotes(self, yahoo_symbols: Sequence[str]) -> list[dict[str, Any]]:
+    def _raise_aggregate_error(
+        self, failures: list[Exception], symbols: Sequence[IndexSymbol]
+    ) -> NoReturn:
         """
-        Issues the batched HTTP request to Yahoo Finance and returns the
-        raw `quoteResponse.result` list, with every failure mode
+        Raises a single representative domain exception when every
+        requested symbol has failed, chosen by priority among the
+        collected per-symbol failures: a rate limit takes precedence over
+        a timeout, which takes precedence over a general unavailability,
+        which takes precedence over an invalid-data failure. Falls back to
+        a fresh InvalidQuoteDataError if no recognized domain exception
+        type is present among the failures.
+        """
+        for failure in failures:
+            if isinstance(failure, ProviderRateLimitedError):
+                raise failure
+        for failure in failures:
+            if isinstance(failure, ProviderTimeoutError):
+                raise failure
+        for failure in failures:
+            if isinstance(failure, ProviderUnavailableError):
+                raise failure
+        for failure in failures:
+            if isinstance(failure, InvalidQuoteDataError):
+                raise failure
+        raise InvalidQuoteDataError(
+            f"No valid quotes could be retrieved for requested symbols: "
+            f"{list(symbols)!r}.",
+            provider_name=type(self).__name__,
+        )
+
+    async def _fetch_quote_for_symbol(
+        self, index_symbol: IndexSymbol, yahoo_symbol: str
+    ) -> IndexQuote:
+        """
+        Issues one HTTP request to the chart endpoint for `yahoo_symbol`
+        and parses the result into an IndexQuote, with every failure mode
         translated into this module's domain exceptions.
 
         Raises:
             ProviderTimeoutError: if the request did not complete within
                 `request_timeout_seconds`.
             ProviderRateLimitedError: if Yahoo responds with HTTP 429.
-            ProviderUnavailableError: if Yahoo responds with HTTP 5xx, or
-                the request fails at the connection/transport level.
+            ProviderUnavailableError: if Yahoo responds with HTTP 401,
+                403, or 5xx, or the request fails at the connection/
+                transport level.
             InvalidQuoteDataError: if Yahoo responds successfully but the
-                body is not valid JSON, does not contain the expected
-                `quoteResponse.result` structure, or responds with an
-                unexpected non-429 4xx status.
+                body is malformed, reports a chart-level error, is missing
+                the expected result/meta structure, is missing required
+                fields, contains values that cannot be parsed, has a zero
+                previous close, or has an unusable timestamp.
         """
+        encoded_symbol = quote(yahoo_symbol, safe="")
+        url = _CHART_ENDPOINT_URL_TEMPLATE.format(symbol=encoded_symbol)
+
         try:
             response = await self._http_client.get(
-                _QUOTE_ENDPOINT_URL,
-                params={"symbols": ",".join(yahoo_symbols)},
+                url,
+                params=_CHART_QUERY_PARAMS,
                 headers=_REQUEST_HEADERS,
                 timeout=self._request_timeout_seconds,
             )
         except httpx.TimeoutException as exc:
             raise ProviderTimeoutError(
                 f"Request to Yahoo Finance timed out after "
-                f"{self._request_timeout_seconds} second(s).",
+                f"{self._request_timeout_seconds} second(s) for symbol "
+                f"{yahoo_symbol!r}.",
                 provider_name=type(self).__name__,
             ) from exc
         except httpx.HTTPError as exc:
             raise ProviderUnavailableError(
-                f"Request to Yahoo Finance failed at the transport level: {exc}",
+                f"Request to Yahoo Finance failed at the transport level "
+                f"for symbol {yahoo_symbol!r}: {exc}",
                 provider_name=type(self).__name__,
             ) from exc
 
@@ -223,6 +302,11 @@ class YahooFinanceProvider(MarketDataProviderPort):
                 "Yahoo Finance reported rate limiting (HTTP 429).",
                 provider_name=type(self).__name__,
                 retry_after_seconds=self._parse_retry_after(response),
+            )
+        if response.status_code in (401, 403):
+            raise ProviderUnavailableError(
+                f"Yahoo Finance denied access (HTTP {response.status_code}).",
+                provider_name=type(self).__name__,
             )
         if response.status_code >= 500:
             raise ProviderUnavailableError(
@@ -234,20 +318,17 @@ class YahooFinanceProvider(MarketDataProviderPort):
                 f"Yahoo Finance returned unexpected client error "
                 f"HTTP {response.status_code}.",
                 provider_name=type(self).__name__,
+                symbol=index_symbol,
             )
 
-        return self._extract_result_list(response)
+        return self._parse_chart_response(index_symbol, yahoo_symbol, response)
 
     def _parse_retry_after(self, response: httpx.Response) -> int | None:
         """
         Parses a numeric `Retry-After` header value in seconds, if present,
-        well-formed, and non-negative.
-
-        Returns None if the header is absent, is not a plain integer
-        (Yahoo does not document HTTP-date-formatted values for this
-        endpoint, so that format is not handled here), or is negative --
-        a negative retry-after value is meaningless and must never be
-        passed on to callers.
+        well-formed, and non-negative. Returns None otherwise -- a missing,
+        malformed, or negative value is treated as "unknown," never passed
+        on to callers as a negative number.
         """
         raw_value = response.headers.get("Retry-After")
         if raw_value is None:
@@ -260,119 +341,152 @@ class YahooFinanceProvider(MarketDataProviderPort):
             return None
         return parsed_value
 
-    def _extract_result_list(self, response: httpx.Response) -> list[dict[str, Any]]:
+    def _parse_chart_response(
+        self,
+        index_symbol: IndexSymbol,
+        yahoo_symbol: str,
+        response: httpx.Response,
+    ) -> IndexQuote:
         """
-        Parses the response body as JSON and returns the
-        `quoteResponse.result` list, filtered to only the entries that are
-        themselves dicts.
+        Parses a chart-endpoint JSON body for one symbol into an
+        IndexQuote.
+
+        Reads `chart.result[0].meta` for `regularMarketPrice`,
+        `regularMarketTime`, `shortName`/`longName`, and a previous-close
+        value (`chartPreviousClose`, falling back to `previousClose`).
+        `change` and `change_percent` are always computed from
+        `regularMarketPrice` and the previous close (never taken directly
+        from a provider-supplied change field), so the response is
+        internally consistent.
 
         Raises:
-            InvalidQuoteDataError: if the body is not valid JSON, the
-                expected `quoteResponse.result` list is missing or is not
-                a list, or the list is non-empty but contains no dict
-                entries at all (i.e. every entry is a malformed,
-                unusable shape).
+            InvalidQuoteDataError: for a malformed body, a chart-level
+                error, a missing result/meta structure, missing required
+                fields, unparseable numeric values, a zero previous close,
+                or an unusable timestamp.
         """
-        try:
-            body = response.json()
-        except ValueError as exc:
+        body = self._parse_json_body(response, symbol=index_symbol)
+
+        chart = body.get("chart") if isinstance(body, dict) else None
+        if not isinstance(chart, dict):
             raise InvalidQuoteDataError(
-                "Yahoo Finance response body was not valid JSON.",
+                "Yahoo Finance chart response was missing the expected "
+                "'chart' object.",
                 provider_name=type(self).__name__,
-            ) from exc
+                symbol=index_symbol,
+            )
 
-        quote_response = body.get("quoteResponse") if isinstance(body, dict) else None
-        result_list = quote_response.get("result") if isinstance(quote_response, dict) else None
-
-        if not isinstance(result_list, list):
+        chart_error = chart.get("error")
+        if chart_error:
             raise InvalidQuoteDataError(
-                "Yahoo Finance response did not contain the expected "
-                "'quoteResponse.result' list.",
+                f"Yahoo Finance chart response reported an error: {chart_error!r}",
                 provider_name=type(self).__name__,
+                symbol=index_symbol,
             )
 
-        dict_entries: list[dict[str, Any]] = []
-        for entry in result_list:
-            if isinstance(entry, dict):
-                dict_entries.append(entry)
-            else:
-                logger.warning(
-                    "Yahoo Finance response contained a non-dict result "
-                    "entry and it was discarded: %r",
-                    entry,
-                )
-
-        if result_list and not dict_entries:
+        result_list = chart.get("result")
+        if not isinstance(result_list, list) or not result_list:
             raise InvalidQuoteDataError(
-                "Yahoo Finance response 'quoteResponse.result' contained "
-                "no usable (dict) entries.",
+                "Yahoo Finance chart response did not contain a usable "
+                "'result' list.",
                 provider_name=type(self).__name__,
+                symbol=index_symbol,
             )
 
-        return dict_entries
-
-    def _try_parse_quote(self, raw_quote: dict[str, Any]) -> tuple[IndexSymbol, IndexQuote] | None:
-        """
-        Attempts to parse one raw result entry into an (IndexSymbol,
-        IndexQuote) pair.
-
-        Returns None (rather than raising) for any entry that cannot be
-        parsed -- an unrecognized Yahoo symbol, a missing required field,
-        or an unusable numeric/timestamp value -- so that one bad entry in
-        an otherwise valid batch response does not prevent the other
-        entries from being returned. The failure is logged for
-        diagnostics.
-        """
-        yahoo_symbol = raw_quote.get("symbol")
-        index_symbol = _YAHOO_TO_SYMBOL.get(yahoo_symbol) if isinstance(yahoo_symbol, str) else None
-        if index_symbol is None:
-            logger.warning(
-                "Yahoo Finance response contained an unrecognized symbol: %r",
-                yahoo_symbol,
+        first_result = result_list[0]
+        if not isinstance(first_result, dict):
+            raise InvalidQuoteDataError(
+                "Yahoo Finance chart response's first result entry was "
+                "not a usable object.",
+                provider_name=type(self).__name__,
+                symbol=index_symbol,
             )
-            return None
 
-        try:
-            price = self._to_decimal(raw_quote.get("regularMarketPrice"))
-            change = self._to_decimal(raw_quote.get("regularMarketChange"))
-            change_percent = self._to_decimal(raw_quote.get("regularMarketChangePercent"))
-            as_of = self._to_utc_datetime(raw_quote.get("regularMarketTime"))
-        except InvalidQuoteDataError as exc:
-            logger.warning(
-                "Failed to parse Yahoo Finance quote for %r: %s", index_symbol, exc
+        meta = first_result.get("meta")
+        if not isinstance(meta, dict):
+            raise InvalidQuoteDataError(
+                "Yahoo Finance chart response result was missing the "
+                "expected 'meta' object.",
+                provider_name=type(self).__name__,
+                symbol=index_symbol,
             )
-            return None
 
-        display_name = self._resolve_display_name(raw_quote, fallback=yahoo_symbol)
+        regular_price = self._to_decimal(
+            meta.get("regularMarketPrice"), symbol=index_symbol, field_name="regularMarketPrice"
+        )
 
-        quote = IndexQuote(
+        previous_close_raw = meta.get("chartPreviousClose")
+        if previous_close_raw is None:
+            previous_close_raw = meta.get("previousClose")
+        previous_close = self._to_decimal(
+            previous_close_raw, symbol=index_symbol, field_name="chartPreviousClose/previousClose"
+        )
+
+        if previous_close == Decimal("0"):
+            raise InvalidQuoteDataError(
+                "Yahoo Finance chart response reported a zero previous "
+                "close, which cannot be used to compute change percent.",
+                provider_name=type(self).__name__,
+                symbol=index_symbol,
+            )
+
+        change = regular_price - previous_close
+        change_percent = (change / previous_close) * Decimal("100")
+
+        as_of = self._to_utc_datetime(meta.get("regularMarketTime"), symbol=index_symbol)
+        display_name = self._resolve_display_name(meta, fallback=yahoo_symbol)
+
+        return IndexQuote(
             symbol=index_symbol,
             display_name=display_name,
-            price=price,
+            price=regular_price,
             change=change,
             change_percent=change_percent,
             as_of=as_of,
         )
-        return index_symbol, quote
 
-    def _resolve_display_name(self, raw_quote: dict[str, Any], *, fallback: str) -> str:
+    def _parse_json_body(
+        self, response: httpx.Response, *, symbol: IndexSymbol
+    ) -> dict[str, Any]:
+        """
+        Parses the response body as JSON.
+
+        Raises:
+            InvalidQuoteDataError: if the body is not valid JSON.
+        """
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise InvalidQuoteDataError(
+                "Yahoo Finance response body was not valid JSON.",
+                provider_name=type(self).__name__,
+                symbol=symbol,
+            ) from exc
+
+    def _resolve_display_name(self, meta: dict[str, Any], *, fallback: str) -> str:
         """
         Resolves a human-readable display name for a quote: prefers
         `shortName` when it is a non-empty string, falls back to
         `longName` when *that* is a non-empty string, and otherwise falls
         back to the raw Yahoo symbol.
         """
-        short_name = raw_quote.get("shortName")
+        short_name = meta.get("shortName")
         if isinstance(short_name, str) and short_name.strip():
             return short_name
 
-        long_name = raw_quote.get("longName")
+        long_name = meta.get("longName")
         if isinstance(long_name, str) and long_name.strip():
             return long_name
 
         return fallback
 
-    def _to_decimal(self, raw_value: Any) -> Decimal:
+    def _to_decimal(
+        self,
+        raw_value: Any,
+        *,
+        symbol: IndexSymbol,
+        field_name: str,
+    ) -> Decimal:
         """
         Converts a raw numeric field to Decimal via str() (never via a
         direct float-to-Decimal construction, which would carry the
@@ -386,27 +500,32 @@ class YahooFinanceProvider(MarketDataProviderPort):
         """
         if raw_value is None:
             raise InvalidQuoteDataError(
-                "Expected numeric field was missing.",
+                f"Expected numeric field {field_name!r} was missing.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             )
         try:
             decimal_value = Decimal(str(raw_value))
         except InvalidOperation as exc:
             raise InvalidQuoteDataError(
-                f"Value {raw_value!r} could not be converted to Decimal.",
+                f"Field {field_name!r} value {raw_value!r} could not be "
+                "converted to Decimal.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             ) from exc
 
         if not decimal_value.is_finite():
             raise InvalidQuoteDataError(
-                f"Value {raw_value!r} converted to a non-finite Decimal "
-                "(NaN or Infinity), which is not a usable quote value.",
+                f"Field {field_name!r} value {raw_value!r} converted to a "
+                "non-finite Decimal (NaN or Infinity), which is not a "
+                "usable quote value.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             )
 
         return decimal_value
 
-    def _to_utc_datetime(self, raw_value: Any) -> datetime:
+    def _to_utc_datetime(self, raw_value: Any, *, symbol: IndexSymbol) -> datetime:
         """
         Converts a Unix-epoch-seconds field (as returned by Yahoo's
         `regularMarketTime`) into a timezone-aware UTC datetime, matching
@@ -421,6 +540,7 @@ class YahooFinanceProvider(MarketDataProviderPort):
             raise InvalidQuoteDataError(
                 "Expected 'regularMarketTime' field was missing.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             )
         try:
             unix_seconds = int(raw_value)
@@ -429,6 +549,7 @@ class YahooFinanceProvider(MarketDataProviderPort):
                 f"'regularMarketTime' value {raw_value!r} is not a valid "
                 "Unix timestamp.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             ) from exc
 
         try:
@@ -438,4 +559,5 @@ class YahooFinanceProvider(MarketDataProviderPort):
                 f"'regularMarketTime' value {unix_seconds!r} could not be "
                 "converted to a datetime.",
                 provider_name=type(self).__name__,
+                symbol=symbol,
             ) from exc
