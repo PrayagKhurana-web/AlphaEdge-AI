@@ -6,21 +6,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.modules.market_data.api.dependencies import market_data_lifespan
 from app.modules.market_data.api.routes import router as market_data_router
+from app.modules.stock_search.api.dependencies import stock_search_lifespan
+from app.modules.stock_search.api.routes import router as stock_search_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Application-wide lifespan, composed from each mounted module's own
-    lifespan context manager. Currently only market_data contributes a
-    lifespan (its shared httpx.AsyncClient must be created at startup and
-    closed at shutdown); future modules that need startup/shutdown
-    handling are expected to nest their own lifespan context managers
-    inside this function in the same way, rather than each defining a
-    separate, uncomposed lifespan on the app.
+    lifespan context manager. market_data and stock_search each contribute
+    a lifespan (each owns a shared httpx.AsyncClient that must be created
+    at startup and closed at shutdown); future modules that need
+    startup/shutdown handling are expected to nest their own lifespan
+    context managers inside this function in the same way, rather than
+    each defining a separate, uncomposed lifespan on the app.
     """
     async with market_data_lifespan(app):
-        yield
+        async with stock_search_lifespan(app):
+            yield
 
 
 app = FastAPI(
@@ -39,6 +42,7 @@ app.add_middleware(
 )
 
 app.include_router(market_data_router)
+app.include_router(stock_search_router)
 
 
 @app.get("/api/v1/health", tags=["System"])
