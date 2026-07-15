@@ -1,3 +1,5 @@
+import { getHealth } from "@/services/api";
+
 const METRICS = [
   { label: "NIFTY 50", value: "24,572.30", change: "+0.82%" },
   { label: "SENSEX", value: "80,645.12", change: "+0.64%" },
@@ -11,14 +13,48 @@ const AI_PICKS = [
   { symbol: "HDFCBANK", score: 76, outlook: "Moderate" },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  let backendStatus = "Offline";
+  let backendVersion = "Unavailable";
+
+  try {
+    const health = await getHealth();
+    backendStatus =
+      health.status === "healthy" ? "Connected" : health.status;
+    backendVersion = health.version;
+  } catch {
+    backendStatus = "Offline";
+  }
+
+  const backendIsConnected = backendStatus === "Connected";
+
   return (
     <main className="min-h-screen bg-black px-6 py-10 text-white sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-3">
-          <p className="text-sm uppercase tracking-[0.25em] text-emerald-400">
-            AlphaEdge AI
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm uppercase tracking-[0.25em] text-emerald-400">
+              AlphaEdge AI
+            </p>
+
+            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-zinc-950 px-4 py-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  backendIsConnected
+                    ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"
+                    : "bg-red-400"
+                }`}
+              />
+
+              <p className="text-xs text-zinc-300">
+                Backend: {backendStatus}
+              </p>
+
+              <span className="text-xs text-zinc-600">
+                v{backendVersion}
+              </span>
+            </div>
+          </div>
 
           <h1 className="text-3xl font-semibold sm:text-4xl">
             Market Intelligence Dashboard
@@ -87,6 +123,7 @@ export default function DashboardPage() {
                     <p className="font-semibold text-zinc-100">
                       {stock.symbol}
                     </p>
+
                     <p className="mt-1 text-xs text-zinc-500">
                       Outlook: {stock.outlook}
                     </p>
@@ -96,6 +133,7 @@ export default function DashboardPage() {
                     <p className="text-lg font-semibold text-emerald-400">
                       {stock.score}
                     </p>
+
                     <p className="text-xs text-zinc-500">AI Score</p>
                   </div>
                 </div>
