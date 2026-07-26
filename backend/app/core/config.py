@@ -7,8 +7,14 @@ set via a same-named (case-insensitive) environment variable, or via a
 local .env file, or left at its default for local development. This is
 the single source of configuration for the whole backend; per
 PROJECT_CONTEXT.md, module-specific settings (like market_data's cache
-TTL or stock_search's query limits) belong here rather than being
-redefined ad hoc inside each module.
+TTL, stock_search's query limits, stock_details' request timeout,
+stock_history's request timeout, or company_fundamentals' request
+timeout) belong here rather than being redefined ad hoc inside each
+module.
+
+This file must remain independent of feature modules -- it never imports
+from market_data, stock_search, stock_details, stock_history, or any
+other module under app/modules/.
 """
 
 from __future__ import annotations
@@ -17,6 +23,27 @@ import math
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _validate_finite_positive_timeout(value: float, *, field_name: str) -> float:
+    """
+    Shared validation logic for every "request timeout in seconds"
+    setting in this class: rejects non-finite values (NaN, positive
+    infinity, negative infinity) and non-positive values (zero or
+    negative).
+
+    Factored out as a single helper so market_data_request_timeout_seconds,
+    stock_search_request_timeout_seconds,
+    stock_details_request_timeout_seconds,
+    stock_history_request_timeout_seconds, and
+    company_fundamentals_request_timeout_seconds all enforce identical
+    rules without duplicating the same finiteness/positivity check.
+    """
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(
+            f"{field_name} must be finite and strictly positive, got {value!r}"
+        )
+    return value
 
 
 class Settings(BaseSettings):
@@ -36,27 +63,25 @@ class Settings(BaseSettings):
     stock_search_default_limit: int = Field(default=8)
     stock_search_max_limit: int = Field(default=20)
 
+    stock_details_request_timeout_seconds: float = Field(default=10.0)
+
+    stock_history_request_timeout_seconds: float = Field(default=10.0)
+
+    company_fundamentals_request_timeout_seconds: float = Field(default=10.0)
+
     @field_validator("market_data_request_timeout_seconds")
     @classmethod
     def _validate_market_data_request_timeout_positive(cls, value: float) -> float:
-        """
-        Rejects a non-finite or non-positive market_data request timeout
-        at settings load time. Finiteness is checked explicitly (not just
-        positivity) since a float setting parsed from an environment
-        variable could otherwise be "inf", "-inf", or "nan", none of
-        which is a usable timeout value.
-        """
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError(
-                "market_data_request_timeout_seconds must be finite and "
-                f"strictly positive, got {value!r}"
-            )
-        return value
+        """Reject a non-finite or non-positive market-data timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="market_data_request_timeout_seconds",
+        )
 
     @field_validator("market_data_cache_ttl_seconds")
     @classmethod
     def _validate_market_data_cache_ttl_positive(cls, value: int) -> int:
-        """Rejects a non-positive market_data cache TTL at settings load time."""
+        """Reject a non-positive market-data cache TTL."""
         if value <= 0:
             raise ValueError(
                 "market_data_cache_ttl_seconds must be strictly positive, "
@@ -66,25 +91,23 @@ class Settings(BaseSettings):
 
     @field_validator("stock_search_request_timeout_seconds")
     @classmethod
-    def _validate_stock_search_request_timeout_positive(cls, value: float) -> float:
-        """
-        Rejects a non-finite or non-positive stock_search request timeout
-        at settings load time. Finiteness is checked explicitly (not just
-        positivity) since a float setting parsed from an environment
-        variable could otherwise be "inf", "-inf", or "nan", none of
-        which is a usable timeout value.
-        """
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError(
-                "stock_search_request_timeout_seconds must be finite and "
-                f"strictly positive, got {value!r}"
-            )
-        return value
+    def _validate_stock_search_request_timeout_positive(
+        cls,
+        value: float,
+    ) -> float:
+        """Reject a non-finite or non-positive stock-search timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="stock_search_request_timeout_seconds",
+        )
 
     @field_validator("stock_search_max_query_length")
     @classmethod
-    def _validate_stock_search_max_query_length_positive(cls, value: int) -> int:
-        """Rejects a non-positive max query length at settings load time."""
+    def _validate_stock_search_max_query_length_positive(
+        cls,
+        value: int,
+    ) -> int:
+        """Reject a non-positive maximum query length."""
         if value <= 0:
             raise ValueError(
                 "stock_search_max_query_length must be strictly positive, "
@@ -94,8 +117,11 @@ class Settings(BaseSettings):
 
     @field_validator("stock_search_default_limit")
     @classmethod
-    def _validate_stock_search_default_limit_positive(cls, value: int) -> int:
-        """Rejects a non-positive default limit at settings load time."""
+    def _validate_stock_search_default_limit_positive(
+        cls,
+        value: int,
+    ) -> int:
+        """Reject a non-positive default result limit."""
         if value <= 0:
             raise ValueError(
                 "stock_search_default_limit must be strictly positive, "
@@ -105,26 +131,61 @@ class Settings(BaseSettings):
 
     @field_validator("stock_search_max_limit")
     @classmethod
-    def _validate_stock_search_max_limit_positive(cls, value: int) -> int:
-        """Rejects a non-positive max limit at settings load time."""
+    def _validate_stock_search_max_limit_positive(
+        cls,
+        value: int,
+    ) -> int:
+        """Reject a non-positive maximum result limit."""
         if value <= 0:
             raise ValueError(
                 f"stock_search_max_limit must be strictly positive, got {value!r}"
             )
         return value
 
+    @field_validator("stock_details_request_timeout_seconds")
+    @classmethod
+    def _validate_stock_details_request_timeout_positive(
+        cls,
+        value: float,
+    ) -> float:
+        """Reject a non-finite or non-positive stock-details timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="stock_details_request_timeout_seconds",
+        )
+
+    @field_validator("stock_history_request_timeout_seconds")
+    @classmethod
+    def _validate_stock_history_request_timeout_positive(
+        cls,
+        value: float,
+    ) -> float:
+        """Reject a non-finite or non-positive stock-history timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="stock_history_request_timeout_seconds",
+        )
+
+    @field_validator("company_fundamentals_request_timeout_seconds")
+    @classmethod
+    def _validate_company_fundamentals_request_timeout_positive(
+        cls,
+        value: float,
+    ) -> float:
+        """Reject a non-finite or non-positive company-fundamentals timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="company_fundamentals_request_timeout_seconds",
+        )
+
     @model_validator(mode="after")
     def _validate_stock_search_limit_relationship(self) -> "Settings":
         """
-        Enforces stock_search_default_limit <= stock_search_max_limit.
+        Enforce stock_search_default_limit <= stock_search_max_limit.
 
-        Implemented as a model-level validator (rather than a field
-        validator on stock_search_max_limit reading from `info.data`) so
-        this cross-field check does not depend on pydantic-settings'
-        field declaration/validation order -- by the time an "after"
-        model validator runs, every individual field validator has
-        already succeeded, so both values are guaranteed present and
-        individually valid here.
+        Implemented as a model-level validator so the cross-field check
+        runs only after both fields have passed their individual
+        validation.
         """
         if self.stock_search_default_limit > self.stock_search_max_limit:
             raise ValueError(
@@ -140,15 +201,12 @@ _settings: Settings | None = None
 
 def get_settings() -> Settings:
     """
-    Returns the process-wide Settings singleton, constructing (and
-    validating) it on first call.
-
-    Callers -- FastAPI dependency wiring, module-level composition code --
-    should always call this rather than instantiating Settings() directly,
-    so environment parsing and validation happen exactly once per process,
-    not once per call site.
+    Return the process-wide Settings singleton, constructing and
+    validating it on first use.
     """
     global _settings
+
     if _settings is None:
         _settings = Settings()
+
     return _settings
