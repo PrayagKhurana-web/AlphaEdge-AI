@@ -1,6 +1,7 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import CompanySummary from "@/components/CompanySummary";
+import StockPriceChart from "@/components/StockPriceChart";
 import {
   getCompanyFundamentals,
   getStockQuote,
@@ -123,7 +124,7 @@ export default async function StockPage({
           href="/dashboard"
           className="text-sm text-zinc-400 transition hover:text-white"
         >
-          ← Back to dashboard
+          &larr; Back to dashboard
         </Link>
 
         <section className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 shadow-xl sm:p-8">
@@ -187,6 +188,8 @@ export default async function StockPage({
         <p className="mt-4 text-right text-xs text-zinc-500">
           Quote updated: {formatTimestamp(quote.asOf)} IST
         </p>
+
+        <StockPriceChart displaySymbol={quote.displaySymbol} />
 
         <section className="mt-8">
           <div>
@@ -365,7 +368,7 @@ export default async function StockPage({
                 rel="noreferrer"
                 className="mt-5 inline-block text-sm font-medium text-blue-400 transition hover:text-blue-300"
               >
-                Visit company website →
+                Visit company website â†’
               </a>
             )}
           </div>
@@ -423,3 +426,7 @@ function FundamentalMetric({
     </div>
   );
 }
+
+
+
+

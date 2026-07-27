@@ -173,3 +173,45 @@ export async function getCompanyFundamentals(
     `Unable to fetch fundamentals for ${normalizedDisplaySymbol}`,
   );
 }
+export type HistoricalCandle = {
+  timestamp: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  adjustedClose: string | null;
+  volume: number;
+};
+
+export type StockHistoryResponse = {
+  symbol: string;
+  displaySymbol: string;
+  companyName: string;
+  exchange: "NSE" | "BSE";
+  interval: string;
+  period: string;
+  candles: HistoricalCandle[];
+  fetchedAt: string;
+};
+
+export async function getStockHistory(
+  displaySymbol: string,
+  period = "1mo",
+  interval = "1d",
+): Promise<StockHistoryResponse> {
+  const normalizedDisplaySymbol = displaySymbol.trim();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  const params = new URLSearchParams({
+    period,
+    interval,
+  });
+
+  return fetchApi<StockHistoryResponse>(
+    `/api/v1/stocks/${encodeURIComponent(normalizedDisplaySymbol)}/history?${params.toString()}`,
+    `Unable to fetch stock history for ${normalizedDisplaySymbol}`,
+  );
+}
