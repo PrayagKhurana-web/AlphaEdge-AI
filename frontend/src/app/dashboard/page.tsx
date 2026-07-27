@@ -1,3 +1,4 @@
+import { StockSearch } from "@/components/StockSearch";
 import {
   getHealth,
   getMarketIndices,
@@ -120,13 +121,6 @@ function calculateMarketMood(metrics: DashboardMetric[]): MarketMood {
 
   const vixChange = indiaVix?.numericChange ?? 0;
 
-  /*
-   * Transparent heuristic:
-   * - Equity indices contribute positively when they rise.
-   * - VIX contributes inversely because a falling VIX generally indicates
-   *   lower short-term fear.
-   * - The final score is bounded between 0 and 100.
-   */
   const rawScore =
     50 +
     clamp(averageEquityChange, -3, 3) * 12 -
@@ -269,6 +263,10 @@ export default async function DashboardPage() {
             Track market movement, AI-ranked opportunities, sentiment and
             portfolio insights from one place.
           </p>
+
+          <div className="mt-3">
+            <StockSearch />
+          </div>
 
           <p className="text-xs text-zinc-600">
             {formatLastUpdated(lastUpdated)}
