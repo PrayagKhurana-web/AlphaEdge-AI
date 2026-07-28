@@ -285,3 +285,59 @@ export async function getTechnicalAnalysis(
     `Unable to fetch technical analysis for ${normalizedDisplaySymbol}`,
   );
 }
+
+export type FinancialStatementPeriod = "annual" | "quarterly";
+
+export type FinancialStatementRecord = {
+  reportingDate: string;
+
+  totalRevenue: string | null;
+  grossProfit: string | null;
+  operatingIncome: string | null;
+  ebitda: string | null;
+  netIncome: string | null;
+  dilutedEps: string | null;
+
+  totalAssets: string | null;
+  totalLiabilities: string | null;
+  shareholderEquity: string | null;
+  cashAndEquivalents: string | null;
+  totalDebt: string | null;
+
+  operatingCashFlow: string | null;
+  capitalExpenditure: string | null;
+  freeCashFlow: string | null;
+  investingCashFlow: string | null;
+  financingCashFlow: string | null;
+};
+
+export type FinancialStatementsResponse = {
+  symbol: string;
+  displaySymbol: string;
+  companyName: string;
+  exchange: "NSE" | "BSE";
+  period: FinancialStatementPeriod;
+  currency: string | null;
+  statements: FinancialStatementRecord[];
+  fetchedAt: string;
+};
+
+export async function getFinancialStatements(
+  displaySymbol: string,
+  period: FinancialStatementPeriod = "annual",
+): Promise<FinancialStatementsResponse> {
+  const normalizedDisplaySymbol = displaySymbol.trim();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  const params = new URLSearchParams({
+    period,
+  });
+
+  return fetchApi<FinancialStatementsResponse>(
+    `/api/v1/stocks/${encodeURIComponent(normalizedDisplaySymbol)}/financial-statements?${params.toString()}`,
+    `Unable to fetch financial statements for ${normalizedDisplaySymbol}`,
+  );
+}
