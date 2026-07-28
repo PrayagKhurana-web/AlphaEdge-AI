@@ -1,4 +1,4 @@
-"""
+﻿"""
 Application-wide configuration for the AlphaEdge AI backend.
 
 Settings are loaded via pydantic-settings' BaseSettings, which supports
@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     stock_history_request_timeout_seconds: float = Field(default=10.0)
 
     company_fundamentals_request_timeout_seconds: float = Field(default=10.0)
+
+    financial_statements_request_timeout_seconds: float = Field(default=15.0)
 
     @field_validator("market_data_request_timeout_seconds")
     @classmethod
@@ -178,6 +180,18 @@ class Settings(BaseSettings):
             field_name="company_fundamentals_request_timeout_seconds",
         )
 
+
+    @field_validator("financial_statements_request_timeout_seconds")
+    @classmethod
+    def _validate_financial_statements_request_timeout_positive(
+        cls,
+        value: float,
+    ) -> float:
+        """Reject a non-finite or non-positive financial-statements timeout."""
+        return _validate_finite_positive_timeout(
+            value,
+            field_name="financial_statements_request_timeout_seconds",
+        )
     @model_validator(mode="after")
     def _validate_stock_search_limit_relationship(self) -> "Settings":
         """
