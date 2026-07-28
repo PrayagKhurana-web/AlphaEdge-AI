@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import CompanySummary from "@/components/CompanySummary";
+import FinancialHealth from "@/components/FinancialHealth";
 import FinancialStatements from "@/components/FinancialStatements";
 import StockPriceChart from "@/components/StockPriceChart";
 import TechnicalIndicators from "@/components/TechnicalIndicators";
@@ -194,6 +195,8 @@ export default async function StockPage({
         <StockPriceChart displaySymbol={quote.displaySymbol} />
 
         <TechnicalIndicators displaySymbol={quote.displaySymbol} />
+
+        <FinancialHealth displaySymbol={quote.displaySymbol} />
 
         <FinancialStatements displaySymbol={quote.displaySymbol} />
 

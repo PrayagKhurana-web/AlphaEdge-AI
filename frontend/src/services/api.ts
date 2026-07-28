@@ -341,3 +341,70 @@ export async function getFinancialStatements(
     `Unable to fetch financial statements for ${normalizedDisplaySymbol}`,
   );
 }
+
+export type FinancialHealthRating =
+  | "strong"
+  | "healthy"
+  | "mixed"
+  | "weak"
+  | "high_risk";
+
+export type FinancialHealthObservationType =
+  | "positive"
+  | "neutral"
+  | "negative";
+
+export type FinancialHealthObservation = {
+  category: string;
+  observationType: FinancialHealthObservationType;
+  message: string;
+};
+
+export type FinancialHealthResponse = {
+  symbol: string;
+  displaySymbol: string;
+  companyName: string;
+  exchange: "NSE" | "BSE";
+  period: FinancialStatementPeriod;
+  currency: string | null;
+
+  overallScore: number;
+  rating: FinancialHealthRating;
+
+  growthScore: number;
+  profitabilityScore: number;
+  balanceSheetScore: number;
+  cashFlowScore: number;
+
+  revenueGrowth: string | null;
+  netIncomeGrowth: string | null;
+  ebitdaMargin: string | null;
+  netProfitMargin: string | null;
+  debtToEquity: string | null;
+  operatingCashFlowGrowth: string | null;
+  freeCashFlowGrowth: string | null;
+  cashConversionRatio: string | null;
+
+  observations: FinancialHealthObservation[];
+  calculatedAt: string;
+};
+
+export async function getFinancialHealth(
+  displaySymbol: string,
+  period: FinancialStatementPeriod = "annual",
+): Promise<FinancialHealthResponse> {
+  const normalizedDisplaySymbol = displaySymbol.trim();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  const params = new URLSearchParams({
+    period,
+  });
+
+  return fetchApi<FinancialHealthResponse>(
+    `/api/v1/stocks/${encodeURIComponent(normalizedDisplaySymbol)}/financial-health?${params.toString()}`,
+    `Unable to fetch financial health for ${normalizedDisplaySymbol}`,
+  );
+}
