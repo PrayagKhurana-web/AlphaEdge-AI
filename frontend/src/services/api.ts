@@ -215,3 +215,73 @@ export async function getStockHistory(
     `Unable to fetch stock history for ${normalizedDisplaySymbol}`,
   );
 }
+
+export type TechnicalTrend =
+  | "bullish"
+  | "bearish"
+  | "neutral";
+
+export type TechnicalSignal =
+  | "strong_buy"
+  | "buy"
+  | "hold"
+  | "sell"
+  | "strong_sell";
+
+export type TechnicalAnalysisResponse = {
+  symbol: string;
+  displaySymbol: string;
+  interval: string;
+  currency: string | null;
+  candleCount: number;
+  latestCandleAt: string;
+  calculatedAt: string;
+  currentPrice: string;
+  previousClose: string | null;
+  priceChange: string | null;
+  priceChangePercent: string | null;
+  trend: TechnicalTrend;
+  sma20: string | null;
+  sma50: string | null;
+  sma200: string | null;
+  ema12: string | null;
+  ema26: string | null;
+  rsi14: string | null;
+  macd: string | null;
+  macdSignal: string | null;
+  macdHistogram: string | null;
+  bollingerUpper: string | null;
+  bollingerMiddle: string | null;
+  bollingerLower: string | null;
+  atr14: string | null;
+  currentVolume: number | null;
+  averageVolume20: string | null;
+  volumeRatio: string | null;
+  fiftyTwoWeekHigh: string | null;
+  fiftyTwoWeekLow: string | null;
+  nearestSupport: string | null;
+  nearestResistance: string | null;
+  signal: TechnicalSignal;
+};
+
+export async function getTechnicalAnalysis(
+  displaySymbol: string,
+  period = "1y",
+  interval = "1d",
+): Promise<TechnicalAnalysisResponse> {
+  const normalizedDisplaySymbol = displaySymbol.trim();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  const params = new URLSearchParams({
+    period,
+    interval,
+  });
+
+  return fetchApi<TechnicalAnalysisResponse>(
+    `/api/v1/stocks/${encodeURIComponent(normalizedDisplaySymbol)}/technical-analysis?${params.toString()}`,
+    `Unable to fetch technical analysis for ${normalizedDisplaySymbol}`,
+  );
+}

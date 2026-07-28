@@ -2,6 +2,7 @@
 
 import CompanySummary from "@/components/CompanySummary";
 import StockPriceChart from "@/components/StockPriceChart";
+import TechnicalIndicators from "@/components/TechnicalIndicators";
 import {
   getCompanyFundamentals,
   getStockQuote,
@@ -191,6 +192,8 @@ export default async function StockPage({
 
         <StockPriceChart displaySymbol={quote.displaySymbol} />
 
+        <TechnicalIndicators displaySymbol={quote.displaySymbol} />
+
         <section className="mt-8">
           <div>
             <h2 className="text-xl font-semibold">
@@ -368,7 +371,7 @@ export default async function StockPage({
                 rel="noreferrer"
                 className="mt-5 inline-block text-sm font-medium text-blue-400 transition hover:text-blue-300"
               >
-                Visit company website â†’
+                                Visit company website &rarr;
               </a>
             )}
           </div>
@@ -426,6 +429,9 @@ function FundamentalMetric({
     </div>
   );
 }
+
+
+
 
 
 
