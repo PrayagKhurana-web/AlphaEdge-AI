@@ -6,7 +6,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
 
-from app.modules.auth.api.dependencies import CurrentUserDependency
+from app.modules.auth.api.dependencies import (
+    VerifiedCurrentUserDependency,
+)
 
 from app.modules.watchlist.api.dependencies import (
     WatchlistServiceDependency,
@@ -46,7 +48,7 @@ def _error_detail(code: str, message: str) -> dict[str, str]:
 )
 async def get_watchlist(
     watchlist_service: WatchlistServiceDependency,
-    current_user: CurrentUserDependency,
+    current_user: VerifiedCurrentUserDependency,
 ) -> WatchlistResponse:
     items = await watchlist_service.list_items(
         user_id=current_user.id,
@@ -64,7 +66,7 @@ async def get_watchlist(
 async def add_watchlist_item(
     payload: AddWatchlistItemRequest,
     watchlist_service: WatchlistServiceDependency,
-    current_user: CurrentUserDependency,
+    current_user: VerifiedCurrentUserDependency,
 ) -> WatchlistItemResponse:
     try:
         item = await watchlist_service.add_item(
@@ -98,7 +100,7 @@ async def add_watchlist_item(
 )
 async def remove_watchlist_item(
     watchlist_service: WatchlistServiceDependency,
-    current_user: CurrentUserDependency,
+    current_user: VerifiedCurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(
