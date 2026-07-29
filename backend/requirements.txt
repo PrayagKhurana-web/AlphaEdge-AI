@@ -3,3 +3,7 @@ uvicorn[standard]
 httpx
 pydantic-settings
 yfinance==1.5.2
+sqlalchemy[asyncio]
+alembic
+asyncmy
+cryptography

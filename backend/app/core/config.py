@@ -1,4 +1,4 @@
-﻿"""
+"""
 Application-wide configuration for the AlphaEdge AI backend.
 
 Settings are loaded via pydantic-settings' BaseSettings, which supports
@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = Field(
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/alphaedge"
+    )
 
     market_data_request_timeout_seconds: float = Field(default=10.0)
     market_data_cache_ttl_seconds: int = Field(default=30)

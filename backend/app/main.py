@@ -1,4 +1,4 @@
-﻿from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,6 +32,7 @@ from app.modules.stock_history.api.dependencies import stock_history_lifespan
 from app.modules.stock_history.api.routes import router as stock_history_router
 from app.modules.stock_search.api.dependencies import stock_search_lifespan
 from app.modules.stock_search.api.routes import router as stock_search_router
+from app.modules.watchlist.api.routes import router as watchlist_router
 
 
 @asynccontextmanager
@@ -74,6 +75,7 @@ app.include_router(company_fundamentals_router)
 app.include_router(financial_statements_router)
 app.include_router(financial_health_router)
 app.include_router(quant_engine_router)
+app.include_router(watchlist_router)
 
 
 @app.get("/api/v1/health", tags=["System"])
