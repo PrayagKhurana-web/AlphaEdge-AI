@@ -114,6 +114,8 @@ export default function Portfolio() {
   const [hasSearched, setHasSearched] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedSearchSymbol, setSelectedSearchSymbol] =
+    useState<string | null>(null);
 
   const searchRequestIdRef = useRef(0);
 
@@ -151,6 +153,19 @@ export default function Portfolio() {
     }
 
     const query = form.displaySymbol.trim();
+
+    if (
+      selectedSearchSymbol !== null &&
+      query.toUpperCase() === selectedSearchSymbol.toUpperCase()
+    ) {
+      searchRequestIdRef.current += 1;
+      setSearchResults([]);
+      setIsSearching(false);
+      setHasSearched(false);
+      setActiveSearchIndex(-1);
+      setSearchError(null);
+      return;
+    }
 
     if (!query) {
       searchRequestIdRef.current += 1;
@@ -201,9 +216,17 @@ export default function Portfolio() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [editingSymbol, form.displaySymbol]);
+  }, [
+    editingSymbol,
+    form.displaySymbol,
+    selectedSearchSymbol,
+  ]);
 
   function updateForm(field: keyof FormState, value: string): void {
+    if (field === "displaySymbol") {
+      setSelectedSearchSymbol(null);
+    }
+
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -211,6 +234,7 @@ export default function Portfolio() {
   }
 
   function selectStock(result: StockSearchResult): void {
+    setSelectedSearchSymbol(result.displaySymbol);
     setForm((current) => ({
       ...current,
       displaySymbol: result.displaySymbol,
@@ -267,6 +291,7 @@ export default function Portfolio() {
       quantity: position.quantity,
       averageBuyPrice: position.averageBuyPrice,
     });
+    setSelectedSearchSymbol(position.displaySymbol);
     setSearchResults([]);
     setActiveSearchIndex(-1);
     setHasSearched(false);
@@ -278,6 +303,7 @@ export default function Portfolio() {
   function cancelEdit(): void {
     setEditingSymbol(null);
     setForm(EMPTY_FORM);
+    setSelectedSearchSymbol(null);
     setSearchResults([]);
     setActiveSearchIndex(-1);
     setHasSearched(false);
@@ -344,6 +370,7 @@ export default function Portfolio() {
 
       setEditingSymbol(null);
       setForm(EMPTY_FORM);
+      setSelectedSearchSymbol(null);
       await loadPortfolio();
     } catch (error) {
       setHasError(true);

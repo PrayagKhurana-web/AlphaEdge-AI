@@ -1,3 +1,9 @@
+import {
+  announceUnauthorizedSession,
+  clearStoredAuthentication,
+  getStoredAccessToken,
+} from "@/auth/storage";
+
 export type HealthResponse = {
   status: string;
   service: string;
@@ -409,6 +415,175 @@ export async function getFinancialHealth(
   );
 }
 
+
+export type AuthenticatedUser = {
+  id: number;
+  email: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuthenticationResponse = {
+  accessToken: string;
+  tokenType: "bearer";
+  user: AuthenticatedUser;
+};
+
+type AuthenticationErrorDetail = {
+  code?: string;
+  message?: string;
+};
+
+type AuthenticationValidationIssue = {
+  msg?: string;
+};
+
+type AuthenticationErrorResponse = {
+  detail?:
+    | AuthenticationErrorDetail
+    | AuthenticationValidationIssue[];
+};
+
+export class AuthenticationApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(
+    message: string,
+    status: number,
+    code: string | null = null,
+  ) {
+    super(message);
+    this.name = "AuthenticationApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function requestAuthenticationApi<T>(
+  endpoint: string,
+  init?: RequestInit,
+  accessToken?: string,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(init?.body
+        ? { "Content-Type": "application/json" }
+        : {}),
+      ...(accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorBody: AuthenticationErrorResponse | null = null;
+
+    try {
+      errorBody =
+        (await response.json()) as AuthenticationErrorResponse;
+    } catch {
+      errorBody = null;
+    }
+
+    const detail = errorBody?.detail;
+    const validationMessage = Array.isArray(detail)
+      ? detail[0]?.msg
+      : undefined;
+    const structuredMessage = !Array.isArray(detail)
+      ? detail?.message
+      : undefined;
+    const structuredCode = !Array.isArray(detail)
+      ? detail?.code ?? null
+      : null;
+
+    throw new AuthenticationApiError(
+      structuredMessage ??
+        validationMessage ??
+        `Authentication request failed with status ${response.status}`,
+      response.status,
+      structuredCode,
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function registerUser(
+  email: string,
+  password: string,
+): Promise<AuthenticationResponse> {
+  return requestAuthenticationApi<AuthenticationResponse>(
+    "/api/v1/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
+    },
+  );
+}
+
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<AuthenticationResponse> {
+  return requestAuthenticationApi<AuthenticationResponse>(
+    "/api/v1/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
+    },
+  );
+}
+
+export async function getCurrentUser(
+  accessToken: string,
+): Promise<AuthenticatedUser> {
+  return requestAuthenticationApi<AuthenticatedUser>(
+    "/api/v1/auth/me",
+    undefined,
+    accessToken,
+  );
+}
+
+function createAuthenticatedHeaders(
+  init?: RequestInit,
+): HeadersInit {
+  const accessToken = getStoredAccessToken();
+
+  return {
+    Accept: "application/json",
+    ...(init?.body
+      ? { "Content-Type": "application/json" }
+      : {}),
+    ...(accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : {}),
+    ...init?.headers,
+  };
+}
+
+function handleProtectedAuthenticationFailure(
+  status: number,
+): void {
+  if (status !== 401) {
+    return;
+  }
+
+  clearStoredAuthentication();
+  announceUnauthorizedSession();
+}
+
 export type WatchlistItem = {
   id: number;
   displaySymbol: string;
@@ -453,14 +628,12 @@ async function requestWatchlistApi<T>(
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...init,
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
+    headers: createAuthenticatedHeaders(init),
   });
 
   if (!response.ok) {
+    handleProtectedAuthenticationFailure(response.status);
+
     let errorBody: WatchlistErrorResponse | null = null;
 
     try {
@@ -600,14 +773,12 @@ async function requestPortfolioApi<T>(
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...init,
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
+    headers: createAuthenticatedHeaders(init),
   });
 
   if (!response.ok) {
+    handleProtectedAuthenticationFailure(response.status);
+
     let errorBody: PortfolioErrorResponse | null = null;
 
     try {

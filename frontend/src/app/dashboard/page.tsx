@@ -1,3 +1,4 @@
+import DashboardAuthGate from "@/components/DashboardAuthGate";
 import Portfolio from "@/components/Portfolio";
 import { StockSearch } from "@/components/StockSearch";
 import Watchlist from "@/components/Watchlist";
@@ -230,7 +231,8 @@ export default async function DashboardPage() {
   const backendIsConnected = backendStatus === "Connected";
 
   return (
-    <main className="min-h-screen bg-black px-6 py-10 text-white sm:px-10">
+    <DashboardAuthGate>
+      <main className="min-h-screen bg-black px-6 py-10 text-white sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -397,6 +399,7 @@ export default async function DashboardPage() {
           </article>
         </section>
       </div>
-    </main>
+      </main>
+    </DashboardAuthGate>
   );
 }
