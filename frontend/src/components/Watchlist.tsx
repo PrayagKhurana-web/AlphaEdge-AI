@@ -187,7 +187,7 @@ export default function Watchlist() {
                 <div className="flex flex-wrap items-center gap-5 sm:justify-end">
                   <div className="sm:text-right">
                     <p className="font-semibold text-zinc-100">
-                      {quote ? `?${formatPrice(quote.price)}` : "Unavailable"}
+                      {quote ? `₹${formatPrice(quote.price)}` : "Unavailable"}
                     </p>
 
                     <p className={`mt-1 text-xs ${changeClassName}`}>

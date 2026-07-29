@@ -63,7 +63,7 @@ function createMetric(
       key,
       label: fallbackLabel,
       value: "Unavailable",
-      change: "â€”",
+      change: "—",
       numericChange: null,
     };
   }

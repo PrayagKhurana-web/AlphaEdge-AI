@@ -170,7 +170,7 @@ export default async function StockPage({
               <p className="text-sm text-zinc-400">Current price</p>
 
               <p className="mt-1 text-4xl font-bold tracking-tight sm:text-5xl">
-                â‚¹{formatNumber(quote.price)}
+                ₹{formatNumber(quote.price)}
               </p>
 
               <p className={`mt-2 text-lg font-medium ${changeClassName}`}>
@@ -297,7 +297,7 @@ export default async function StockPage({
               value={
                 fundamentals.bookValuePerShare === null
                   ? "Not available"
-                  : `â‚¹${formatNumber(
+                  : `₹${formatNumber(
                       fundamentals.bookValuePerShare,
                     )}`
               }
@@ -317,7 +317,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyTwoWeekHigh === null
                     ? "Not available"
-                    : `â‚¹${formatNumber(
+                    : `₹${formatNumber(
                         fundamentals.fiftyTwoWeekHigh,
                       )}`
                 }
@@ -328,7 +328,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyTwoWeekLow === null
                     ? "Not available"
-                    : `â‚¹${formatNumber(
+                    : `₹${formatNumber(
                         fundamentals.fiftyTwoWeekLow,
                       )}`
                 }
@@ -339,7 +339,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyDayAverage === null
                     ? "Not available"
-                    : `â‚¹${formatNumber(
+                    : `₹${formatNumber(
                         fundamentals.fiftyDayAverage,
                       )}`
                 }
@@ -350,7 +350,7 @@ export default async function StockPage({
                 value={
                   fundamentals.twoHundredDayAverage === null
                     ? "Not available"
-                    : `â‚¹${formatNumber(
+                    : `₹${formatNumber(
                         fundamentals.twoHundredDayAverage,
                       )}`
                 }
@@ -413,7 +413,7 @@ function QuoteMetric({
       </p>
 
       <p className="mt-2 text-lg font-semibold">
-        â‚¹{formatNumber(value)}
+        ₹{formatNumber(value)}
       </p>
     </div>
   );
