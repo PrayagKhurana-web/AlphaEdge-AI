@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.modules.auth.api.routes import router as auth_router
+
 from app.modules.company_fundamentals.api.dependencies import (
     company_fundamentals_lifespan,
 )
@@ -68,6 +70,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(market_data_router)
 app.include_router(portfolio_router)
 app.include_router(stock_search_router)

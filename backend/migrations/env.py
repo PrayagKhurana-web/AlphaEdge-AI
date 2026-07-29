@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.core.database.base import Base
+from app.modules.auth.infrastructure.models import UserModel
 from app.modules.portfolio.infrastructure.models import PortfolioHoldingModel
 from app.modules.watchlist.infrastructure.models import WatchlistItemModel
 

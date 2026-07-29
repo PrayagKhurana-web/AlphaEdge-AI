@@ -6,6 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
 
+from app.modules.auth.api.dependencies import CurrentUserDependency
+
 from app.modules.watchlist.api.dependencies import (
     WatchlistServiceDependency,
 )
@@ -28,7 +30,6 @@ router = APIRouter(
     tags=["Watchlist"],
 )
 
-_DEVELOPMENT_USER_ID = 1
 
 
 def _error_detail(code: str, message: str) -> dict[str, str]:
@@ -45,9 +46,10 @@ def _error_detail(code: str, message: str) -> dict[str, str]:
 )
 async def get_watchlist(
     watchlist_service: WatchlistServiceDependency,
+    current_user: CurrentUserDependency,
 ) -> WatchlistResponse:
     items = await watchlist_service.list_items(
-        user_id=_DEVELOPMENT_USER_ID,
+        user_id=current_user.id,
     )
 
     return WatchlistResponse.from_domain(items)
@@ -62,10 +64,11 @@ async def get_watchlist(
 async def add_watchlist_item(
     payload: AddWatchlistItemRequest,
     watchlist_service: WatchlistServiceDependency,
+    current_user: CurrentUserDependency,
 ) -> WatchlistItemResponse:
     try:
         item = await watchlist_service.add_item(
-            user_id=_DEVELOPMENT_USER_ID,
+            user_id=current_user.id,
             display_symbol=payload.display_symbol,
         )
     except InvalidWatchlistSymbolError as exc:
@@ -95,6 +98,7 @@ async def add_watchlist_item(
 )
 async def remove_watchlist_item(
     watchlist_service: WatchlistServiceDependency,
+    current_user: CurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(
@@ -106,7 +110,7 @@ async def remove_watchlist_item(
 ) -> None:
     try:
         await watchlist_service.remove_item(
-            user_id=_DEVELOPMENT_USER_ID,
+            user_id=current_user.id,
             display_symbol=display_symbol,
         )
     except InvalidWatchlistSymbolError as exc:

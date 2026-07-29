@@ -75,6 +75,10 @@ class Settings(BaseSettings):
 
     financial_statements_request_timeout_seconds: float = Field(default=15.0)
 
+    auth_secret_key: str = Field(min_length=32)
+    auth_algorithm: str = Field(default="HS256")
+    auth_access_token_expire_minutes: int = Field(default=60)
+
     @field_validator("market_data_request_timeout_seconds")
     @classmethod
     def _validate_market_data_request_timeout_positive(cls, value: float) -> float:
@@ -196,6 +200,27 @@ class Settings(BaseSettings):
             value,
             field_name="financial_statements_request_timeout_seconds",
         )
+    @field_validator("auth_access_token_expire_minutes")
+    @classmethod
+    def _validate_auth_access_token_expiry_positive(
+        cls,
+        value: int,
+    ) -> int:
+        if value <= 0:
+            raise ValueError(
+                "auth_access_token_expire_minutes must be positive."
+            )
+        return value
+
+    @field_validator("auth_algorithm")
+    @classmethod
+    def _validate_auth_algorithm(cls, value: str) -> str:
+        if value != "HS256":
+            raise ValueError(
+                "Only the HS256 authentication algorithm is supported."
+            )
+        return value
+
     @model_validator(mode="after")
     def _validate_stock_search_limit_relationship(self) -> "Settings":
         """

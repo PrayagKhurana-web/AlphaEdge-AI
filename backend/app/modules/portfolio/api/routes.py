@@ -4,6 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
 
+from app.modules.auth.api.dependencies import CurrentUserDependency
+
 from app.modules.portfolio.api.dependencies import (
     PortfolioServiceDependency,
 )
@@ -32,7 +34,6 @@ router = APIRouter(
     tags=["Portfolio"],
 )
 
-_DEVELOPMENT_USER_ID = 1
 
 
 def _error_detail(code: str, message: str) -> dict[str, str]:
@@ -98,10 +99,11 @@ def _raise_quote_error(error: Exception) -> None:
 )
 async def get_portfolio(
     portfolio_service: PortfolioServiceDependency,
+    current_user: CurrentUserDependency,
 ) -> PortfolioResponse:
     try:
         valuation = await portfolio_service.value_portfolio(
-            _DEVELOPMENT_USER_ID
+            current_user.id
         )
     except (
         InvalidDisplaySymbolError,
@@ -125,10 +127,11 @@ async def get_portfolio(
 async def add_portfolio_holding(
     payload: AddPortfolioHoldingRequest,
     portfolio_service: PortfolioServiceDependency,
+    current_user: CurrentUserDependency,
 ) -> PortfolioHoldingResponse:
     try:
         holding = await portfolio_service.add_holding(
-            user_id=_DEVELOPMENT_USER_ID,
+            user_id=current_user.id,
             display_symbol=payload.display_symbol,
             quantity=payload.quantity,
             average_buy_price=payload.average_buy_price,
@@ -170,6 +173,7 @@ async def add_portfolio_holding(
 async def update_portfolio_holding(
     payload: UpdatePortfolioHoldingRequest,
     portfolio_service: PortfolioServiceDependency,
+    current_user: CurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(min_length=5, max_length=32),
@@ -177,7 +181,7 @@ async def update_portfolio_holding(
 ) -> PortfolioHoldingResponse:
     try:
         holding = await portfolio_service.update_holding(
-            user_id=_DEVELOPMENT_USER_ID,
+            user_id=current_user.id,
             display_symbol=display_symbol,
             quantity=payload.quantity,
             average_buy_price=payload.average_buy_price,
@@ -209,6 +213,7 @@ async def update_portfolio_holding(
 )
 async def delete_portfolio_holding(
     portfolio_service: PortfolioServiceDependency,
+    current_user: CurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(min_length=5, max_length=32),
@@ -216,7 +221,7 @@ async def delete_portfolio_holding(
 ) -> None:
     try:
         await portfolio_service.remove_holding(
-            user_id=_DEVELOPMENT_USER_ID,
+            user_id=current_user.id,
             display_symbol=display_symbol,
         )
     except InvalidPortfolioHoldingError as error:

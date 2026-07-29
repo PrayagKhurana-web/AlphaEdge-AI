@@ -7,3 +7,6 @@ sqlalchemy[asyncio]
 alembic
 asyncmy
 cryptography
+pwdlib[argon2]
+PyJWT
+email-validator
