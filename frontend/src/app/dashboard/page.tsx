@@ -1,4 +1,5 @@
 import { StockSearch } from "@/components/StockSearch";
+import Watchlist from "@/components/Watchlist";
 import {
   getHealth,
   getMarketIndices,
@@ -62,7 +63,7 @@ function createMetric(
       key,
       label: fallbackLabel,
       value: "Unavailable",
-      change: "—",
+      change: "â€”",
       numericChange: null,
     };
   }
@@ -308,6 +309,8 @@ export default async function DashboardPage() {
             </article>
           ))}
         </section>
+
+        <Watchlist />
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[2fr_1fr]">
           <article className="rounded-2xl border border-white/10 bg-zinc-950 p-6">

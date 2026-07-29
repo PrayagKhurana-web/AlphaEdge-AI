@@ -5,6 +5,7 @@ import FinancialHealth from "@/components/FinancialHealth";
 import FinancialStatements from "@/components/FinancialStatements";
 import StockPriceChart from "@/components/StockPriceChart";
 import TechnicalIndicators from "@/components/TechnicalIndicators";
+import WatchlistButton from "@/components/WatchlistButton";
 import {
   getCompanyFundamentals,
   getStockQuote,
@@ -162,11 +163,14 @@ export default async function StockPage({
               </div>
             </div>
 
-            <div className="sm:text-right">
+            <div className="flex flex-col gap-4 sm:items-end">
+              <WatchlistButton displaySymbol={quote.displaySymbol} />
+
+              <div className="sm:text-right">
               <p className="text-sm text-zinc-400">Current price</p>
 
               <p className="mt-1 text-4xl font-bold tracking-tight sm:text-5xl">
-                ₹{formatNumber(quote.price)}
+                â‚¹{formatNumber(quote.price)}
               </p>
 
               <p className={`mt-2 text-lg font-medium ${changeClassName}`}>
@@ -174,6 +178,7 @@ export default async function StockPage({
                 {formatNumber(quote.change)} ({changePrefix}
                 {formatNumber(quote.changePercent)}%)
               </p>
+              </div>
             </div>
           </div>
 
@@ -292,7 +297,7 @@ export default async function StockPage({
               value={
                 fundamentals.bookValuePerShare === null
                   ? "Not available"
-                  : `₹${formatNumber(
+                  : `â‚¹${formatNumber(
                       fundamentals.bookValuePerShare,
                     )}`
               }
@@ -312,7 +317,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyTwoWeekHigh === null
                     ? "Not available"
-                    : `₹${formatNumber(
+                    : `â‚¹${formatNumber(
                         fundamentals.fiftyTwoWeekHigh,
                       )}`
                 }
@@ -323,7 +328,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyTwoWeekLow === null
                     ? "Not available"
-                    : `₹${formatNumber(
+                    : `â‚¹${formatNumber(
                         fundamentals.fiftyTwoWeekLow,
                       )}`
                 }
@@ -334,7 +339,7 @@ export default async function StockPage({
                 value={
                   fundamentals.fiftyDayAverage === null
                     ? "Not available"
-                    : `₹${formatNumber(
+                    : `â‚¹${formatNumber(
                         fundamentals.fiftyDayAverage,
                       )}`
                 }
@@ -345,7 +350,7 @@ export default async function StockPage({
                 value={
                   fundamentals.twoHundredDayAverage === null
                     ? "Not available"
-                    : `₹${formatNumber(
+                    : `â‚¹${formatNumber(
                         fundamentals.twoHundredDayAverage,
                       )}`
                 }
@@ -408,7 +413,7 @@ function QuoteMetric({
       </p>
 
       <p className="mt-2 text-lg font-semibold">
-        ₹{formatNumber(value)}
+        â‚¹{formatNumber(value)}
       </p>
     </div>
   );

@@ -408,3 +408,123 @@ export async function getFinancialHealth(
     `Unable to fetch financial health for ${normalizedDisplaySymbol}`,
   );
 }
+
+export type WatchlistItem = {
+  id: number;
+  displaySymbol: string;
+  exchange: "NSE" | "BSE";
+  createdAt: string;
+};
+
+export type WatchlistResponse = {
+  items: WatchlistItem[];
+  count: number;
+};
+
+type WatchlistErrorDetail = {
+  code?: string;
+  message?: string;
+};
+
+type WatchlistErrorResponse = {
+  detail?: WatchlistErrorDetail;
+};
+
+export class WatchlistApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(
+    message: string,
+    status: number,
+    code: string | null = null,
+  ) {
+    super(message);
+    this.name = "WatchlistApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function requestWatchlistApi<T>(
+  endpoint: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorBody: WatchlistErrorResponse | null = null;
+
+    try {
+      errorBody = (await response.json()) as WatchlistErrorResponse;
+    } catch {
+      errorBody = null;
+    }
+
+    throw new WatchlistApiError(
+      errorBody?.detail?.message ??
+        `Watchlist request failed with status ${response.status}`,
+      response.status,
+      errorBody?.detail?.code ?? null,
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function getWatchlist(): Promise<WatchlistResponse> {
+  return requestWatchlistApi<WatchlistResponse>(
+    "/api/v1/watchlist",
+  );
+}
+
+export async function addToWatchlist(
+  displaySymbol: string,
+): Promise<WatchlistItem> {
+  const normalizedDisplaySymbol = displaySymbol.trim().toUpperCase();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  return requestWatchlistApi<WatchlistItem>(
+    "/api/v1/watchlist",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        displaySymbol: normalizedDisplaySymbol,
+      }),
+    },
+  );
+}
+
+export async function removeFromWatchlist(
+  displaySymbol: string,
+): Promise<void> {
+  const normalizedDisplaySymbol = displaySymbol.trim().toUpperCase();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  await requestWatchlistApi<void>(
+    `/api/v1/watchlist/${encodeURIComponent(
+      normalizedDisplaySymbol,
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
