@@ -528,3 +528,176 @@ export async function removeFromWatchlist(
     },
   );
 }
+
+
+export type PortfolioHolding = {
+  id: number;
+  displaySymbol: string;
+  exchange: "NSE" | "BSE";
+  quantity: string;
+  averageBuyPrice: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PortfolioPosition = {
+  id: number;
+  displaySymbol: string;
+  companyName: string;
+  exchange: "NSE" | "BSE";
+  quantity: string;
+  averageBuyPrice: string;
+  currentPrice: string;
+  investedAmount: string;
+  currentValue: string;
+  profitLoss: string;
+  returnPercent: string;
+  allocationPercent: string;
+};
+
+export type PortfolioResponse = {
+  positions: PortfolioPosition[];
+  count: number;
+  totalInvested: string;
+  totalCurrentValue: string;
+  totalProfitLoss: string;
+  totalReturnPercent: string;
+};
+
+type PortfolioErrorDetail = {
+  code?: string;
+  message?: string;
+};
+
+type PortfolioValidationIssue = {
+  msg?: string;
+};
+
+type PortfolioErrorResponse = {
+  detail?: PortfolioErrorDetail | PortfolioValidationIssue[];
+};
+
+export class PortfolioApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(
+    message: string,
+    status: number,
+    code: string | null = null,
+  ) {
+    super(message);
+    this.name = "PortfolioApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function requestPortfolioApi<T>(
+  endpoint: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorBody: PortfolioErrorResponse | null = null;
+
+    try {
+      errorBody = (await response.json()) as PortfolioErrorResponse;
+    } catch {
+      errorBody = null;
+    }
+
+    const detail = errorBody?.detail;
+
+    const validationMessage = Array.isArray(detail)
+      ? detail[0]?.msg
+      : undefined;
+
+    const structuredMessage = !Array.isArray(detail)
+      ? detail?.message
+      : undefined;
+
+    const structuredCode = !Array.isArray(detail)
+      ? detail?.code ?? null
+      : null;
+
+    throw new PortfolioApiError(
+      structuredMessage ??
+        validationMessage ??
+        `Portfolio request failed with status ${response.status}`,
+      response.status,
+      structuredCode,
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function getPortfolio(): Promise<PortfolioResponse> {
+  return requestPortfolioApi<PortfolioResponse>(
+    "/api/v1/portfolio",
+  );
+}
+
+export async function addPortfolioHolding(
+  displaySymbol: string,
+  quantity: string,
+  averageBuyPrice: string,
+): Promise<PortfolioHolding> {
+  return requestPortfolioApi<PortfolioHolding>(
+    "/api/v1/portfolio",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        displaySymbol: displaySymbol.trim().toUpperCase(),
+        quantity,
+        averageBuyPrice,
+      }),
+    },
+  );
+}
+
+export async function updatePortfolioHolding(
+  displaySymbol: string,
+  quantity: string,
+  averageBuyPrice: string,
+): Promise<PortfolioHolding> {
+  return requestPortfolioApi<PortfolioHolding>(
+    `/api/v1/portfolio/${encodeURIComponent(
+      displaySymbol.trim().toUpperCase(),
+    )}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        quantity,
+        averageBuyPrice,
+      }),
+    },
+  );
+}
+
+export async function deletePortfolioHolding(
+  displaySymbol: string,
+): Promise<void> {
+  await requestPortfolioApi<void>(
+    `/api/v1/portfolio/${encodeURIComponent(
+      displaySymbol.trim().toUpperCase(),
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+}

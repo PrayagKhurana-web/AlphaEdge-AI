@@ -1,3 +1,4 @@
+import Portfolio from "@/components/Portfolio";
 import { StockSearch } from "@/components/StockSearch";
 import Watchlist from "@/components/Watchlist";
 import {
@@ -309,6 +310,8 @@ export default async function DashboardPage() {
             </article>
           ))}
         </section>
+
+        <Portfolio />
 
         <Watchlist />
 
