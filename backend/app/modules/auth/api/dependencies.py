@@ -5,19 +5,34 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database.session import get_db_session
-from app.modules.auth.application.service import AuthenticationService
+from app.modules.auth.application.email_verification import (
+    EmailVerificationService,
+)
+from app.modules.auth.application.service import (
+    AuthenticationService,
+)
 from app.modules.auth.domain.entities import User
-from app.modules.auth.domain.exceptions import InvalidAccessTokenError
+from app.modules.auth.domain.exceptions import (
+    InvalidAccessTokenError,
+)
+from app.modules.auth.infrastructure.email_delivery import (
+    ConsoleEmailVerificationSender,
+)
 from app.modules.auth.infrastructure.repository import (
+    SqlAlchemyEmailVerificationRepository,
     SqlAlchemyUserRepository,
 )
 from app.modules.auth.infrastructure.security import (
     AccessTokenService,
+    EmailVerificationTokenService,
     PasswordService,
 )
 
@@ -27,9 +42,7 @@ DatabaseSessionDependency = Annotated[
     Depends(get_db_session),
 ]
 
-_bearer_scheme = HTTPBearer(
-    auto_error=False,
-)
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_authentication_service(
@@ -45,6 +58,27 @@ def get_authentication_service(
 AuthenticationServiceDependency = Annotated[
     AuthenticationService,
     Depends(get_authentication_service),
+]
+
+
+def get_email_verification_service(
+    session: DatabaseSessionDependency,
+) -> EmailVerificationService:
+    settings = get_settings()
+
+    return EmailVerificationService(
+        user_repository=SqlAlchemyUserRepository(session),
+        verification_repository=(
+            SqlAlchemyEmailVerificationRepository(session)
+        ),
+        token_service=EmailVerificationTokenService(settings),
+        sender=ConsoleEmailVerificationSender(settings),
+    )
+
+
+EmailVerificationServiceDependency = Annotated[
+    EmailVerificationService,
+    Depends(get_email_verification_service),
 ]
 
 
@@ -89,7 +123,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": "INVALID_ACCESS_TOKEN",
-                "message": "The authenticated user is unavailable.",
+                "message": (
+                    "The authenticated user is unavailable."
+                ),
             },
             headers={"WWW-Authenticate": "Bearer"},
         )

@@ -1,7 +1,9 @@
-"""Password hashing and JWT token handling."""
+"""Password hashing, JWT handling, and verification tokens."""
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -10,7 +12,9 @@ from jwt import InvalidTokenError
 from pwdlib import PasswordHash
 
 from app.core.config import Settings
-from app.modules.auth.domain.exceptions import InvalidAccessTokenError
+from app.modules.auth.domain.exceptions import (
+    InvalidAccessTokenError,
+)
 
 
 _password_hash = PasswordHash.recommended()
@@ -50,7 +54,9 @@ class AccessTokenService:
         payload: dict[str, Any] = {
             "sub": str(user_id),
             "iat": now,
-            "exp": now + timedelta(minutes=self._expiry_minutes),
+            "exp": now + timedelta(
+                minutes=self._expiry_minutes
+            ),
             "type": "access",
         }
 
@@ -95,3 +101,31 @@ class AccessTokenService:
             raise InvalidAccessTokenError(
                 "The access token is invalid or expired."
             ) from exc
+
+
+class EmailVerificationTokenService:
+    """Generate opaque tokens and store only SHA-256 hashes."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._expiry_minutes = (
+            settings.email_verification_token_expire_minutes
+        )
+
+    @staticmethod
+    def generate_raw_token() -> str:
+        return secrets.token_urlsafe(48)
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        return hashlib.sha256(
+            raw_token.encode("utf-8")
+        ).hexdigest()
+
+    def calculate_expiry(
+        self,
+        *,
+        issued_at: datetime,
+    ) -> datetime:
+        return issued_at + timedelta(
+            minutes=self._expiry_minutes
+        )

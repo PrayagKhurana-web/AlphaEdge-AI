@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     auth_algorithm: str = Field(default="HS256")
     auth_access_token_expire_minutes: int = Field(default=60)
 
+    email_verification_token_expire_minutes: int = Field(
+        default=30
+    )
+    email_verification_base_url: str = Field(
+        default="http://localhost:3000/auth/verify-email"
+    )
+
     @field_validator("market_data_request_timeout_seconds")
     @classmethod
     def _validate_market_data_request_timeout_positive(cls, value: float) -> float:
@@ -209,6 +216,21 @@ class Settings(BaseSettings):
         if value <= 0:
             raise ValueError(
                 "auth_access_token_expire_minutes must be positive."
+            )
+        return value
+
+    @field_validator(
+        "email_verification_token_expire_minutes"
+    )
+    @classmethod
+    def _validate_email_verification_expiry_positive(
+        cls,
+        value: int,
+    ) -> int:
+        if value <= 0:
+            raise ValueError(
+                "email_verification_token_expire_minutes "
+                "must be positive."
             )
         return value
 
