@@ -7,3 +7,9 @@ __pycache__/
 !.env.example
 
 backend/.venv/
+
+# Python-generated files
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
