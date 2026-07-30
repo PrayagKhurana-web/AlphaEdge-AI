@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final, NoReturn
 
@@ -18,6 +18,7 @@ from app.modules.financial_statements.domain.entities import (
     FinancialStatementPeriod,
     FinancialStatementRecord,
     FinancialStatements,
+    FinancialStatementsFreshnessStatus,
 )
 from app.modules.financial_statements.domain.exceptions import (
     FinancialStatementsProviderRateLimitedError,
@@ -288,6 +289,32 @@ class YahooFinancialStatementsProvider(FinancialStatementsProviderPort):
             or self._optional_text(info.get("currency"))
         )
 
+        fetched_at = datetime.now(timezone.utc)
+        latest_reporting_date = usable_records[0].reporting_date
+
+        expected_latest_reporting_date = (
+            self._expected_latest_reporting_date(
+                period=period,
+                as_of=fetched_at.date(),
+            )
+        )
+
+        data_age_days = max(
+            0,
+            (fetched_at.date() - latest_reporting_date).days,
+        )
+
+        is_potentially_stale = (
+            latest_reporting_date
+            < expected_latest_reporting_date
+        )
+
+        freshness_status = (
+            FinancialStatementsFreshnessStatus.POTENTIALLY_STALE
+            if is_potentially_stale
+            else FinancialStatementsFreshnessStatus.CURRENT
+        )
+
         return FinancialStatements(
             symbol=canonical_symbol,
             display_symbol=display_symbol,
@@ -296,8 +323,52 @@ class YahooFinancialStatementsProvider(FinancialStatementsProviderPort):
             period=period,
             currency=currency,
             statements=usable_records,
-            fetched_at=datetime.now(timezone.utc),
+            latest_reporting_date=latest_reporting_date,
+            expected_latest_reporting_date=(
+                expected_latest_reporting_date
+            ),
+            data_age_days=data_age_days,
+            freshness_status=freshness_status,
+            is_potentially_stale=is_potentially_stale,
+            fetched_at=fetched_at,
         )
+
+    @staticmethod
+    def _expected_latest_reporting_date(
+        *,
+        period: FinancialStatementPeriod,
+        as_of: date,
+    ) -> date:
+        """Return the latest expected reporting period after a grace window."""
+        grace_days = (
+            30
+            if period is FinancialStatementPeriod.QUARTERLY
+            else 120
+        )
+
+        cutoff = as_of - timedelta(days=grace_days)
+
+        if period is FinancialStatementPeriod.ANNUAL:
+            candidate = date(cutoff.year, 3, 31)
+
+            if candidate > cutoff:
+                candidate = date(cutoff.year - 1, 3, 31)
+
+            return candidate
+
+        candidates = [
+            date(year, month, day)
+            for year in range(cutoff.year - 1, cutoff.year + 1)
+            for month, day in (
+                (3, 31),
+                (6, 30),
+                (9, 30),
+                (12, 31),
+            )
+            if date(year, month, day) <= cutoff
+        ]
+
+        return max(candidates)
 
     def _get_value(
         self,

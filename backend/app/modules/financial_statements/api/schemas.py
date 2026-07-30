@@ -110,6 +110,19 @@ class FinancialStatementsResponse(BaseModel):
     period: str
     currency: str | None
     statements: list[FinancialStatementRecordResponse]
+
+    latest_reporting_date: date = Field(
+        alias="latestReportingDate"
+    )
+    expected_latest_reporting_date: date = Field(
+        alias="expectedLatestReportingDate"
+    )
+    data_age_days: int = Field(alias="dataAgeDays")
+    freshness_status: str = Field(alias="freshnessStatus")
+    is_potentially_stale: bool = Field(
+        alias="isPotentiallyStale"
+    )
+
     fetched_at: AwareDatetime = Field(alias="fetchedAt")
 
     @classmethod
@@ -128,5 +141,18 @@ class FinancialStatementsResponse(BaseModel):
                 FinancialStatementRecordResponse.from_domain(record)
                 for record in financial_statements.statements
             ],
+            latestReportingDate=(
+                financial_statements.latest_reporting_date
+            ),
+            expectedLatestReportingDate=(
+                financial_statements.expected_latest_reporting_date
+            ),
+            dataAgeDays=financial_statements.data_age_days,
+            freshnessStatus=(
+                financial_statements.freshness_status.value
+            ),
+            isPotentiallyStale=(
+                financial_statements.is_potentially_stale
+            ),
             fetchedAt=financial_statements.fetched_at,
         )

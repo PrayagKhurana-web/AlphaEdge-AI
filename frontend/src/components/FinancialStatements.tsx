@@ -100,6 +100,25 @@ function formatStatementValue(
   return currency === "INR" ? `₹${formattedValue}` : formattedValue;
 }
 
+
+function formatLatestReportingDate(
+  value: string | undefined,
+): string {
+  if (!value) {
+    return "Unavailable";
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+  }).format(parsedDate);
+}
+
 function calculateGrowth(
   currentValue: string | null,
   previousValue: string | null,
@@ -269,6 +288,80 @@ export default function FinancialStatements({
 
       {!isLoading && data && (
         <>
+          <div
+            className={`mt-5 rounded-xl border px-4 py-4 ${
+              data.isPotentiallyStale
+                ? "border-amber-500/20 bg-amber-500/5"
+                : "border-emerald-500/20 bg-emerald-500/5"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                data.isPotentiallyStale
+                  ? "text-amber-200"
+                  : "text-emerald-200"
+              }`}
+            >
+              {data.isPotentiallyStale
+                ? "Provider data may be behind"
+                : "Provider data appears current"}
+            </p>
+
+            <div className="mt-2 grid gap-1 text-xs leading-5 text-zinc-400 sm:grid-cols-2">
+              <p>
+                Latest available:{" "}
+                <span className="text-zinc-200">
+                  {formatLatestReportingDate(
+                    data.latestReportingDate,
+                  )}
+                </span>
+              </p>
+
+              <p>
+                Expected period:{" "}
+                <span className="text-zinc-200">
+                  {formatLatestReportingDate(
+                    data.expectedLatestReportingDate,
+                  )}
+                </span>
+              </p>
+
+              <p>
+                Provider data age:{" "}
+                <span className="text-zinc-200">
+                  {data.dataAgeDays} days
+                </span>
+              </p>
+
+              <p>
+                Status:{" "}
+                <span className="text-zinc-200">
+                  {data.freshnessStatus ===
+                  "potentially_stale"
+                    ? "Potentially stale"
+                    : "Current"}
+                </span>
+              </p>
+            </div>
+
+            <p
+              className={`mt-3 text-xs leading-5 ${
+                data.isPotentiallyStale
+                  ? "text-amber-200/70"
+                  : "text-emerald-200/70"
+              }`}
+            >
+              {data.isPotentiallyStale
+                ? "The provider has not yet returned the latest calendar period expected by AlphaEdge. Check the company or NSE/BSE filing before relying on these figures."
+                : "The latest provider period matches AlphaEdge's calendar-based freshness expectation."}
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-zinc-600">
+              Freshness is a calendar heuristic, not confirmation
+              of a company-specific exchange filing.
+            </p>
+          </div>
+
           {healthMetrics.length > 0 && (
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               {healthMetrics.map((metric) => (

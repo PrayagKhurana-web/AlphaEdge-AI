@@ -17,6 +17,13 @@ class FinancialStatementPeriod(StrEnum):
     QUARTERLY = "quarterly"
 
 
+class FinancialStatementsFreshnessStatus(StrEnum):
+    """Heuristic freshness state for provider statement data."""
+
+    CURRENT = "current"
+    POTENTIALLY_STALE = "potentially_stale"
+
+
 @dataclass(frozen=True, slots=True)
 class FinancialStatementRecord:
     """Financial values reported for one statement date.
@@ -61,4 +68,11 @@ class FinancialStatements:
     period: FinancialStatementPeriod
     currency: str | None
     statements: tuple[FinancialStatementRecord, ...]
+
+    latest_reporting_date: date
+    expected_latest_reporting_date: date
+    data_age_days: int
+    freshness_status: FinancialStatementsFreshnessStatus
+    is_potentially_stale: bool
+
     fetched_at: datetime

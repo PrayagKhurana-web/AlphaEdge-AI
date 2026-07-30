@@ -325,6 +325,15 @@ export type FinancialStatementsResponse = {
   period: FinancialStatementPeriod;
   currency: string | null;
   statements: FinancialStatementRecord[];
+
+  latestReportingDate: string;
+  expectedLatestReportingDate: string;
+  dataAgeDays: number;
+  freshnessStatus:
+    | "current"
+    | "potentially_stale";
+  isPotentiallyStale: boolean;
+
   fetchedAt: string;
 };
 

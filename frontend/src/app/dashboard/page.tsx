@@ -1,3 +1,4 @@
+import AITopPicks from "@/components/AITopPicks";
 import DashboardAuthGate from "@/components/DashboardAuthGate";
 import Portfolio from "@/components/Portfolio";
 import { StockSearch } from "@/components/StockSearch";
@@ -9,11 +10,6 @@ import {
   type MarketIndicesResponse,
 } from "@/services/api";
 
-const AI_PICKS = [
-  { symbol: "RELIANCE", score: 84, outlook: "Bullish" },
-  { symbol: "HAL", score: 81, outlook: "Bullish" },
-  { symbol: "HDFCBANK", score: 76, outlook: "Moderate" },
-];
 
 type DashboardMetric = {
   key: string;
@@ -321,9 +317,12 @@ export default async function DashboardPage() {
           <article className="rounded-2xl border border-white/10 bg-zinc-950 p-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold">AI Top Picks</h2>
+                <h2 className="text-xl font-semibold">
+                  AI Top Picks
+                </h2>
+
                 <p className="mt-1 text-sm text-zinc-500">
-                  Mock data for layout testing
+                  Live rule-based rankings
                 </p>
               </div>
 
@@ -335,32 +334,10 @@ export default async function DashboardPage() {
               </a>
             </div>
 
-            <div className="space-y-3">
-              {AI_PICKS.map((stock) => (
-                <div
-                  key={stock.symbol}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-black/50 px-4 py-4"
-                >
-                  <div>
-                    <p className="font-semibold text-zinc-100">
-                      {stock.symbol}
-                    </p>
-
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Outlook: {stock.outlook}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-emerald-400">
-                      {stock.score}
-                    </p>
-
-                    <p className="text-xs text-zinc-500">AI Score</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AITopPicks
+              limit={3}
+              showHeader={false}
+            />
           </article>
 
           <article className="rounded-2xl border border-white/10 bg-zinc-950 p-6">
