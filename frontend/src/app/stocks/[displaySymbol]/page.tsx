@@ -4,6 +4,7 @@ import CompanySummary from "@/components/CompanySummary";
 import FinancialHealth from "@/components/FinancialHealth";
 import FinancialStatements from "@/components/FinancialStatements";
 import StockPriceChart from "@/components/StockPriceChart";
+import StockAnalysis from "@/components/StockAnalysis";
 import TechnicalIndicators from "@/components/TechnicalIndicators";
 import WatchlistButton from "@/components/WatchlistButton";
 import {
@@ -198,6 +199,8 @@ export default async function StockPage({
         </p>
 
         <StockPriceChart displaySymbol={quote.displaySymbol} />
+
+        <StockAnalysis displaySymbol={quote.displaySymbol} />
 
         <TechnicalIndicators displaySymbol={quote.displaySymbol} />
 

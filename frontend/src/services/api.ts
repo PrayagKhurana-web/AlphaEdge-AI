@@ -416,6 +416,78 @@ export async function getFinancialHealth(
 }
 
 
+export type StockOutlook =
+  | "bullish"
+  | "neutral"
+  | "bearish";
+
+export type StockRiskLevel =
+  | "low"
+  | "medium"
+  | "high";
+
+export type StockAnalysisReasonType =
+  | "positive"
+  | "neutral"
+  | "negative";
+
+export type StockAnalysisReason = {
+  category: string;
+  reasonType: StockAnalysisReasonType;
+  message: string;
+};
+
+export type StockAnalysisResponse = {
+  symbol: string;
+  displaySymbol: string;
+
+  outlook: StockOutlook;
+  bullishProbability: number;
+  bearishProbability: number;
+  confidenceScore: number;
+  riskLevel: StockRiskLevel;
+  timeHorizon: string;
+
+  overallScore: number;
+  technicalScore: number;
+  financialScore: number;
+  marketActivityScore: number;
+
+  currentPrice: string;
+  nearestSupport: string | null;
+  nearestResistance: string | null;
+
+  reasons: StockAnalysisReason[];
+  calculatedAt: string;
+};
+
+export async function getStockAnalysis(
+  displaySymbol: string,
+  technicalPeriod = "1y",
+  interval = "1d",
+  financialPeriod: FinancialStatementPeriod = "annual",
+): Promise<StockAnalysisResponse> {
+  const normalizedDisplaySymbol = displaySymbol.trim();
+
+  if (!normalizedDisplaySymbol) {
+    throw new Error("Display symbol is required");
+  }
+
+  const params = new URLSearchParams({
+    interval,
+    technicalPeriod,
+    financialPeriod,
+  });
+
+  return fetchApi<StockAnalysisResponse>(
+    `/api/v1/stocks/${encodeURIComponent(
+      normalizedDisplaySymbol,
+    )}/analysis?${params.toString()}`,
+    `Unable to fetch stock analysis for ${normalizedDisplaySymbol}`,
+  );
+}
+
+
 export type AuthenticatedUser = {
   id: number;
   email: string;

@@ -29,6 +29,12 @@ from app.modules.market_data.api.routes import router as market_data_router
 from app.modules.portfolio.api.routes import router as portfolio_router
 from app.modules.quant_engine.api.dependencies import quant_engine_lifespan
 from app.modules.quant_engine.api.routes import router as quant_engine_router
+from app.modules.stock_analysis.api.dependencies import (
+    stock_analysis_lifespan,
+)
+from app.modules.stock_analysis.api.routes import (
+    router as stock_analysis_router,
+)
 from app.modules.stock_details.api.dependencies import stock_details_lifespan
 from app.modules.stock_details.api.routes import router as stock_details_router
 from app.modules.stock_history.api.dependencies import stock_history_lifespan
@@ -52,7 +58,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                         async with financial_statements_lifespan(app):
                             async with financial_health_lifespan(app):
                                 async with quant_engine_lifespan(app):
-                                    yield
+                                    async with stock_analysis_lifespan(app):
+                                        yield
 
 
 app = FastAPI(
@@ -80,6 +87,7 @@ app.include_router(company_fundamentals_router)
 app.include_router(financial_statements_router)
 app.include_router(financial_health_router)
 app.include_router(quant_engine_router)
+app.include_router(stock_analysis_router)
 app.include_router(watchlist_router)
 
 
