@@ -19,11 +19,3 @@ class InactiveUserError(AuthenticationError):
 
 class InvalidAccessTokenError(AuthenticationError):
     """Raised when an access token cannot be validated."""
-
-
-class InvalidEmailVerificationTokenError(AuthenticationError):
-    """Raised when a verification token is invalid or expired."""
-
-
-class EmailAlreadyVerifiedError(AuthenticationError):
-    """Raised when an already-verified user requests verification."""
