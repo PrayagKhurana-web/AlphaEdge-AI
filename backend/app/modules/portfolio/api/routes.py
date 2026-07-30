@@ -4,9 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
 
-from app.modules.auth.api.dependencies import (
-    VerifiedCurrentUserDependency,
-)
+from app.modules.auth.api.dependencies import CurrentUserDependency
 
 from app.modules.portfolio.api.dependencies import (
     PortfolioServiceDependency,
@@ -101,7 +99,7 @@ def _raise_quote_error(error: Exception) -> None:
 )
 async def get_portfolio(
     portfolio_service: PortfolioServiceDependency,
-    current_user: VerifiedCurrentUserDependency,
+    current_user: CurrentUserDependency,
 ) -> PortfolioResponse:
     try:
         valuation = await portfolio_service.value_portfolio(
@@ -129,7 +127,7 @@ async def get_portfolio(
 async def add_portfolio_holding(
     payload: AddPortfolioHoldingRequest,
     portfolio_service: PortfolioServiceDependency,
-    current_user: VerifiedCurrentUserDependency,
+    current_user: CurrentUserDependency,
 ) -> PortfolioHoldingResponse:
     try:
         holding = await portfolio_service.add_holding(
@@ -175,7 +173,7 @@ async def add_portfolio_holding(
 async def update_portfolio_holding(
     payload: UpdatePortfolioHoldingRequest,
     portfolio_service: PortfolioServiceDependency,
-    current_user: VerifiedCurrentUserDependency,
+    current_user: CurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(min_length=5, max_length=32),
@@ -215,7 +213,7 @@ async def update_portfolio_holding(
 )
 async def delete_portfolio_holding(
     portfolio_service: PortfolioServiceDependency,
-    current_user: VerifiedCurrentUserDependency,
+    current_user: CurrentUserDependency,
     display_symbol: Annotated[
         str,
         Path(min_length=5, max_length=32),

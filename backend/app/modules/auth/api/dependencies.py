@@ -137,31 +137,3 @@ CurrentUserDependency = Annotated[
     User,
     Depends(get_current_user),
 ]
-
-
-async def get_verified_current_user(
-    current_user: CurrentUserDependency,
-) -> User:
-    """
-    Require an authenticated user whose email ownership has
-    been verified.
-    """
-    if not current_user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "EMAIL_VERIFICATION_REQUIRED",
-                "message": (
-                    "Verify your email address before using "
-                    "portfolio or watchlist features."
-                ),
-            },
-        )
-
-    return current_user
-
-
-VerifiedCurrentUserDependency = Annotated[
-    User,
-    Depends(get_verified_current_user),
-]
