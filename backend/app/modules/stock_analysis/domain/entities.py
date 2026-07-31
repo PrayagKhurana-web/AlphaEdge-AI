@@ -102,3 +102,53 @@ class StockAnalysisSnapshot:
 
         if not self.reasons:
             raise ValueError("at least one analysis reason is required")
+
+
+@dataclass(frozen=True, slots=True)
+class TopPicksSnapshot:
+    """Ranked stock-analysis results for a configured universe."""
+
+    picks: tuple[StockAnalysisSnapshot, ...]
+    failed_symbols: tuple[str, ...]
+
+    universe_size: int
+    successful_count: int
+    generated_at: datetime
+    cache_expires_at: datetime
+
+    technical_weight: int = 60
+    financial_weight: int = 30
+    market_activity_weight: int = 10
+
+    def __post_init__(self) -> None:
+        if self.universe_size <= 0:
+            raise ValueError("universe_size must be positive")
+
+        if self.successful_count < 0:
+            raise ValueError("successful_count must not be negative")
+
+        if self.successful_count > self.universe_size:
+            raise ValueError(
+                "successful_count must not exceed universe_size"
+            )
+
+        if self.generated_at.tzinfo is None:
+            raise ValueError("generated_at must be timezone-aware")
+
+        if self.cache_expires_at.tzinfo is None:
+            raise ValueError(
+                "cache_expires_at must be timezone-aware"
+            )
+
+        if self.cache_expires_at <= self.generated_at:
+            raise ValueError(
+                "cache_expires_at must be later than generated_at"
+            )
+
+        if (
+            self.technical_weight
+            + self.financial_weight
+            + self.market_activity_weight
+            != 100
+        ):
+            raise ValueError("analysis weights must total 100")

@@ -9,6 +9,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI
 
+from app.core.config import get_settings
 from app.modules.financial_health.api.dependencies import (
     get_financial_health_service,
 )
@@ -44,6 +45,16 @@ async def get_stock_analysis_service() -> StockAnalysisService:
         technical_service = await get_quant_engine_service()
         financial_service = await get_financial_health_service()
 
+        settings = get_settings()
+
+        top_picks_universe = tuple(
+            symbol.strip().upper()
+            for symbol in (
+                settings.stock_analysis_top_picks_universe
+            ).split(",")
+            if symbol.strip()
+        )
+
         _service = StockAnalysisService(
             technical_provider=QuantEngineAnalysisAdapter(
                 technical_service
@@ -52,6 +63,15 @@ async def get_stock_analysis_service() -> StockAnalysisService:
                 financial_service
             ),
             calculator=StockAnalysisCalculator(),
+            top_picks_universe=top_picks_universe,
+            top_picks_cache_ttl_seconds=(
+                settings
+                .stock_analysis_top_picks_cache_ttl_seconds
+            ),
+            top_picks_max_concurrency=(
+                settings
+                .stock_analysis_top_picks_max_concurrency
+            ),
         )
 
         return _service

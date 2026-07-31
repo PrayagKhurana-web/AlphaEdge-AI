@@ -497,6 +497,44 @@ export async function getStockAnalysis(
 }
 
 
+export type TopPicksWeights = {
+  technical: number;
+  financial: number;
+  marketActivity: number;
+};
+
+export type TopPicksResponse = {
+  picks: StockAnalysisResponse[];
+  failedSymbols: string[];
+
+  universeSize: number;
+  successfulCount: number;
+  failedCount: number;
+  returnedPickCount: number;
+
+  weights: TopPicksWeights;
+  generatedAt: string;
+  cacheExpiresAt: string;
+};
+
+export async function getTopPicks(
+  technicalPeriod = "1y",
+  interval = "1d",
+  financialPeriod: FinancialStatementPeriod = "annual",
+): Promise<TopPicksResponse> {
+  const params = new URLSearchParams({
+    interval,
+    technicalPeriod,
+    financialPeriod,
+  });
+
+  return fetchApi<TopPicksResponse>(
+    `/api/v1/analysis/top-picks?${params.toString()}`,
+    "Unable to fetch AlphaEdge Top Picks",
+  );
+}
+
+
 export type AuthenticatedUser = {
   id: number;
   email: string;

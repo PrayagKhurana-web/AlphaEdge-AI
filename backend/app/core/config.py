@@ -75,6 +75,19 @@ class Settings(BaseSettings):
 
     financial_statements_request_timeout_seconds: float = Field(default=15.0)
 
+    stock_analysis_top_picks_cache_ttl_seconds: int = Field(
+        default=300
+    )
+    stock_analysis_top_picks_max_concurrency: int = Field(
+        default=4
+    )
+    stock_analysis_top_picks_universe: str = Field(
+        default=(
+            "RELIANCE.NSE,TCS.NSE,HDFCBANK.NSE,HAL.NSE,"
+            "INFY.NSE,ICICIBANK.NSE,SBIN.NSE,BHARTIARTL.NSE"
+        )
+    )
+
     auth_secret_key: str = Field(min_length=32)
     auth_algorithm: str = Field(default="HS256")
     auth_access_token_expire_minutes: int = Field(default=60)
@@ -200,6 +213,48 @@ class Settings(BaseSettings):
             value,
             field_name="financial_statements_request_timeout_seconds",
         )
+    @field_validator(
+        "stock_analysis_top_picks_cache_ttl_seconds",
+        "stock_analysis_top_picks_max_concurrency",
+    )
+    @classmethod
+    def _validate_positive_stock_analysis_settings(
+        cls,
+        value: int,
+    ) -> int:
+        if value <= 0:
+            raise ValueError(
+                "Stock-analysis Top Picks numeric settings "
+                "must be strictly positive."
+            )
+        return value
+
+    @field_validator("stock_analysis_top_picks_universe")
+    @classmethod
+    def _validate_top_picks_universe(
+        cls,
+        value: str,
+    ) -> str:
+        symbols = [
+            symbol.strip().upper()
+            for symbol in value.split(",")
+            if symbol.strip()
+        ]
+
+        if not symbols:
+            raise ValueError(
+                "stock_analysis_top_picks_universe "
+                "must contain at least one symbol."
+            )
+
+        if len(symbols) != len(set(symbols)):
+            raise ValueError(
+                "stock_analysis_top_picks_universe "
+                "must not contain duplicate symbols."
+            )
+
+        return ",".join(symbols)
+
     @field_validator("auth_access_token_expire_minutes")
     @classmethod
     def _validate_auth_access_token_expiry_positive(

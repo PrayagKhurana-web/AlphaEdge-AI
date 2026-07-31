@@ -11,16 +11,51 @@ from app.modules.stock_analysis.api.dependencies import (
 )
 from app.modules.stock_analysis.api.schemas import (
     StockAnalysisResponse,
+    TopPicksResponse,
 )
 
 router = APIRouter(
-    prefix="/api/v1/stocks",
+    prefix="/api/v1",
     tags=["Stock Analysis"],
 )
 
 
 @router.get(
-    "/{display_symbol}/analysis",
+    "/analysis/top-picks",
+    response_model=TopPicksResponse,
+    summary="Get ranked AlphaEdge Top Picks",
+    description=(
+        "Analyses the configured stock universe with bounded "
+        "concurrency and returns a short-lived cached ranking. "
+        "The output is deterministic and is not investment advice."
+    ),
+)
+async def get_top_picks(
+    service: StockAnalysisServiceDependency,
+    interval: Annotated[
+        str,
+        Query(description="Technical candle interval."),
+    ] = "1d",
+    technical_period: Annotated[
+        str,
+        Query(alias="technicalPeriod"),
+    ] = "1y",
+    financial_period: Annotated[
+        str,
+        Query(alias="financialPeriod"),
+    ] = "annual",
+) -> TopPicksResponse:
+    snapshot = await service.get_top_picks(
+        interval=interval,
+        technical_period=technical_period,
+        financial_period=financial_period,
+    )
+
+    return TopPicksResponse.from_domain(snapshot)
+
+
+@router.get(
+    "/stocks/{display_symbol}/analysis",
     response_model=StockAnalysisResponse,
     summary="Get an explainable probability-based stock outlook",
     description=(
