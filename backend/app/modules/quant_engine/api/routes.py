@@ -89,7 +89,7 @@ def _error_detail(code: str, message: str) -> dict[str, str]:
         status.HTTP_400_BAD_REQUEST: {
             "description": "Malformed or unsupported technical-analysis request.",
         },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Not enough usable historical candles to calculate a "
                 "reliable snapshot."
@@ -172,7 +172,7 @@ async def get_technical_analysis(
         ) from exc
     except InsufficientHistoricalDataError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=_error_detail(
                 "INSUFFICIENT_HISTORICAL_DATA",
                 "Not enough usable historical candles are available to "
