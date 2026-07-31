@@ -632,10 +632,10 @@ class YahooHistoryProvider(HistoricalDataProviderPort):
         data.
 
         Raises:
-            InvalidHistoricalDataError: if a row's OHLC fields are
-                partially populated, if a required OHLC value or volume
+            InvalidHistoricalDataError: if a required OHLC value or volume
                 cannot be converted to a usable type, or if the assembled
-                candle fails domain validation.
+                candle fails domain validation. Rows with incomplete OHLC
+                data are skipped.
         """
         candles: list[HistoricalCandle] = []
 
@@ -655,14 +655,10 @@ class YahooHistoryProvider(HistoricalDataProviderPort):
                 continue
 
             if any(value is None for value in required_ohlc_values):
-                raise InvalidHistoricalDataError(
-                    f"Yahoo Finance chart response row at index {index} is "
-                    "partially populated (some but not all of "
-                    "open/high/low/close are missing), which is not a "
-                    "usable candle.",
-                    provider_name=_PROVIDER_NAME,
-                    display_symbol=display_symbol,
-                )
+                # Yahoo occasionally returns an incomplete candle for an
+                # otherwise valid series. Ignore that unusable row rather
+                # than failing the complete stock-history request.
+                continue
 
             candle_timestamp = self._to_utc_datetime(
                 raw_timestamp, index=index, display_symbol=display_symbol
