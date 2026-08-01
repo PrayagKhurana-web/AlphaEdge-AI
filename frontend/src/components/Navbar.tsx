@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Markets", href: "/markets" },
   { label: "AI Picks", href: "/ai-picks" },
+  { label: "Pulse", href: "/pulse" },
   { label: "News", href: "/news" },
   { label: "Pricing", href: "/pricing" },
 ];

@@ -991,3 +991,130 @@ export async function deletePortfolioHolding(
     },
   );
 }
+
+
+export type PredictionHorizon = 1 | 5 | 20;
+
+export type PredictionDirection =
+  | "bearish"
+  | "neutral"
+  | "bullish";
+
+export type PredictionModelEvaluation = {
+  trainingRowCount: number;
+  testingRowCount: number;
+  holdoutAccuracy: string;
+  holdoutBalancedAccuracy: string;
+  walkForwardFoldCount: number;
+  walkForwardTotalPredictions: number;
+  walkForwardAccuracy: string;
+  walkForwardBalancedAccuracy: string;
+};
+
+export type StockDirectionPrediction = {
+  displaySymbol: string;
+  horizon: PredictionHorizon;
+  asOf: string;
+  currentPrice: string;
+  predictedDirection: PredictionDirection;
+  bearishProbability: string;
+  neutralProbability: string;
+  bullishProbability: string;
+  confidenceScore: number;
+  positiveThreshold: string;
+  negativeThreshold: string;
+  modelName: string;
+  modelVersion: string;
+  evaluation: PredictionModelEvaluation;
+  disclaimer: string;
+};
+
+type PredictionApiErrorDetail = {
+  code?: string;
+  message?: string;
+};
+
+type PredictionApiErrorResponse = {
+  detail?: PredictionApiErrorDetail | Array<{
+    msg?: string;
+  }>;
+};
+
+export class PredictionApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(
+    message: string,
+    status: number,
+    code: string | null = null,
+  ) {
+    super(message);
+    this.name = "PredictionApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export async function getStockDirectionPrediction(
+  displaySymbol: string,
+  horizon: PredictionHorizon,
+): Promise<StockDirectionPrediction> {
+  const normalizedSymbol =
+    displaySymbol.trim().toUpperCase();
+
+  if (!normalizedSymbol) {
+    throw new Error("Display symbol is required.");
+  }
+
+  const parameters = new URLSearchParams({
+    horizon: String(horizon),
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/predictions/${encodeURIComponent(
+      normalizedSymbol,
+    )}?${parameters.toString()}`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    let errorBody: PredictionApiErrorResponse | null = null;
+
+    try {
+      errorBody =
+        (await response.json()) as PredictionApiErrorResponse;
+    } catch {
+      errorBody = null;
+    }
+
+    const detail = errorBody?.detail;
+
+    const validationMessage = Array.isArray(detail)
+      ? detail[0]?.msg
+      : undefined;
+
+    const structuredMessage = !Array.isArray(detail)
+      ? detail?.message
+      : undefined;
+
+    const structuredCode = !Array.isArray(detail)
+      ? detail?.code ?? null
+      : null;
+
+    throw new PredictionApiError(
+      structuredMessage ??
+        validationMessage ??
+        `Prediction request failed with status ${response.status}`,
+      response.status,
+      structuredCode,
+    );
+  }
+
+  return (await response.json()) as StockDirectionPrediction;
+}
