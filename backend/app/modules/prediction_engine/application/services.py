@@ -9,6 +9,7 @@ from app.modules.prediction_engine.domain.entities import (
     PredictionDataset,
     PredictionFeatureRow,
     PredictionHorizon,
+    PredictionInputRow,
 )
 from app.modules.stock_history.domain.entities import (
     HistoricalCandle,
@@ -118,6 +119,81 @@ class PredictionDatasetBuilder:
             rows=tuple(rows),
             positive_threshold=positive_threshold,
             negative_threshold=negative_threshold,
+        )
+
+    def build_latest_input(
+        self,
+        series: HistoricalSeries,
+        *,
+        horizon: PredictionHorizon,
+    ) -> PredictionInputRow:
+        """Build an inference row from the newest available candle.
+
+        The latest candle has no known future outcome, so this method
+        returns PredictionInputRow rather than fabricating a training
+        label or future return.
+        """
+
+        candles = series.candles
+
+        if len(candles) < 21:
+            raise ValueError(
+                "at least 21 candles are required to build "
+                "the latest prediction input"
+            )
+
+        index = len(candles) - 1
+        current = candles[index]
+
+        return PredictionInputRow(
+            display_symbol=series.display_symbol,
+            as_of=current.timestamp,
+            horizon=horizon,
+            close_price=current.close_price,
+            return_1=self._return_over_sessions(
+                candles,
+                index=index,
+                sessions=1,
+            ),
+            return_5=self._return_over_sessions(
+                candles,
+                index=index,
+                sessions=5,
+            ),
+            return_20=self._return_over_sessions(
+                candles,
+                index=index,
+                sessions=20,
+            ),
+            sma_ratio_5=self._sma_ratio(
+                candles,
+                index=index,
+                sessions=5,
+            ),
+            sma_ratio_20=self._sma_ratio(
+                candles,
+                index=index,
+                sessions=20,
+            ),
+            volatility_5=self._return_volatility(
+                candles,
+                index=index,
+                sessions=5,
+            ),
+            volatility_20=self._return_volatility(
+                candles,
+                index=index,
+                sessions=20,
+            ),
+            volume_ratio_20=self._volume_ratio(
+                candles,
+                index=index,
+                sessions=20,
+            ),
+            candle_body_ratio=self._candle_body_ratio(
+                current
+            ),
+            range_ratio=self._range_ratio(current),
         )
 
     @staticmethod

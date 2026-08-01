@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+import pytest
+
 from app.modules.prediction_engine.application.services import (
     PredictionDatasetBuilder,
 )
@@ -162,3 +164,41 @@ def test_builder_uses_only_past_volume_for_ratio() -> None:
     )
 
     assert first_row.volume_ratio_20 == expected_ratio
+
+
+def test_latest_input_uses_final_candle() -> None:
+    series = make_series(candle_count=30)
+
+    latest = PredictionDatasetBuilder().build_latest_input(
+        series,
+        horizon=PredictionHorizon.FIVE_SESSIONS,
+    )
+
+    assert latest.as_of == series.candles[-1].timestamp
+    assert latest.close_price == series.candles[-1].close_price
+
+
+def test_latest_input_does_not_require_future_candle() -> None:
+    series = make_series(candle_count=21)
+
+    latest = PredictionDatasetBuilder().build_latest_input(
+        series,
+        horizon=PredictionHorizon.TWENTY_SESSIONS,
+    )
+
+    assert latest.as_of == series.candles[-1].timestamp
+    assert not hasattr(latest, "future_return")
+    assert not hasattr(latest, "label")
+
+
+def test_latest_input_rejects_insufficient_history() -> None:
+    series = make_series(candle_count=20)
+
+    with pytest.raises(
+        ValueError,
+        match="at least 21 candles",
+    ):
+        PredictionDatasetBuilder().build_latest_input(
+            series,
+            horizon=PredictionHorizon.NEXT_SESSION,
+        )

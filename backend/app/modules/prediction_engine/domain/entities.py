@@ -25,6 +25,45 @@ class DirectionLabel(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class PredictionInputRow:
+    """Feature row used for real inference.
+
+    Unlike PredictionFeatureRow, this object contains no future return
+    and no observed label. It therefore represents information that is
+    genuinely available at prediction time.
+    """
+
+    display_symbol: str
+    as_of: datetime
+    horizon: PredictionHorizon
+
+    close_price: Decimal
+    return_1: Decimal | None
+    return_5: Decimal | None
+    return_20: Decimal | None
+
+    sma_ratio_5: Decimal | None
+    sma_ratio_20: Decimal | None
+
+    volatility_5: Decimal | None
+    volatility_20: Decimal | None
+
+    volume_ratio_20: Decimal | None
+    candle_body_ratio: Decimal | None
+    range_ratio: Decimal | None
+
+    def __post_init__(self) -> None:
+        if not self.display_symbol.strip():
+            raise ValueError("display_symbol must not be empty")
+
+        if self.as_of.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+
+        if self.close_price <= 0:
+            raise ValueError("close_price must be positive")
+
+
+@dataclass(frozen=True, slots=True)
 class PredictionFeatureRow:
     """One leakage-safe model feature row.
 

@@ -14,6 +14,7 @@ from app.modules.prediction_engine.domain.entities import (
     DirectionLabel,
     PredictionDataset,
     PredictionFeatureRow,
+    PredictionInputRow,
 )
 
 
@@ -228,7 +229,7 @@ class BaselineDirectionModel:
     def predict_probability(
         self,
         result: BaselineTrainingResult,
-        row: PredictionFeatureRow,
+        row: PredictionFeatureRow | PredictionInputRow,
     ) -> DirectionProbability:
         raw_probabilities = result.pipeline.predict_proba(
             [self._feature_vector(row)]
@@ -275,7 +276,7 @@ class BaselineDirectionModel:
 
     @staticmethod
     def _feature_vector(
-        row: PredictionFeatureRow,
+        row: PredictionFeatureRow | PredictionInputRow,
     ) -> list[float]:
         values = [
             getattr(row, feature_name)
