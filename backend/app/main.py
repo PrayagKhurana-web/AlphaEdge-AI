@@ -4,6 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.logging import configure_logging
+from app.core.logging.middleware import RequestLoggingMiddleware
+
 from app.modules.auth.api.routes import router as auth_router
 
 from app.modules.company_fundamentals.api.dependencies import (
@@ -62,12 +65,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                                         yield
 
 
+configure_logging()
+
 app = FastAPI(
     title="AlphaEdge AI API",
     description="Backend API for the AlphaEdge AI stock intelligence platform.",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
