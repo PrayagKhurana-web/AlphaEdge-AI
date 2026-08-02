@@ -29,6 +29,9 @@ from app.modules.financial_statements.api.routes import (
 )
 from app.modules.market_data.api.dependencies import market_data_lifespan
 from app.modules.market_data.api.routes import router as market_data_router
+from app.modules.multibagger.api.routes import (
+    router as multibagger_router,
+)
 from app.modules.portfolio.api.routes import router as portfolio_router
 from app.modules.prediction_engine.api.routes import (
     router as prediction_engine_router,
@@ -89,6 +92,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(market_data_router)
+app.include_router(multibagger_router)
 app.include_router(portfolio_router)
 app.include_router(prediction_engine_router)
 app.include_router(stock_search_router)
