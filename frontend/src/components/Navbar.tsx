@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -8,12 +8,9 @@ import { useAuth } from "@/auth/useAuth";
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Markets", href: "/markets" },
   { label: "AI Picks", href: "/ai-picks" },
   { label: "Pulse", href: "/pulse" },
   { label: "Multibagger", href: "/multibagger" },
-  { label: "News", href: "/news" },
-  { label: "Pricing", href: "/pricing" },
 ];
 
 export function Navbar() {
@@ -38,7 +35,6 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-10">
         <Link href="/" className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.7)]" />
-
           <span className="text-sm font-semibold uppercase tracking-[0.25em] text-zinc-100">
             Alpha<span className="text-emerald-400">Edge</span> AI
           </span>
@@ -65,13 +61,6 @@ export function Navbar() {
               >
                 {user.email}
               </span>
-
-              <Link
-                href="/dashboard"
-                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-900"
-              >
-                Dashboard
-              </Link>
 
               <button
                 type="button"
@@ -104,14 +93,10 @@ export function Navbar() {
           type="button"
           aria-label="Toggle navigation menu"
           aria-expanded={isMenuOpen}
-          onClick={() =>
-            setIsMenuOpen((current) => !current)
-          }
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 text-zinc-200 md:hidden"
+          onClick={() => setIsMenuOpen((current) => !current)}
+          className="flex h-9 min-w-16 items-center justify-center rounded-lg border border-zinc-800 px-2 text-sm text-zinc-200 md:hidden"
         >
-          <span className="text-lg">
-            {isMenuOpen ? "X" : "Menu"}
-          </span>
+          {isMenuOpen ? "Close" : "Menu"}
         </button>
       </div>
 
@@ -130,9 +115,7 @@ export function Navbar() {
             ))}
 
             <div className="mt-3 flex flex-col gap-2 border-t border-white/5 pt-3">
-              {!isRestoringSession &&
-              isAuthenticated &&
-              user ? (
+              {!isRestoringSession && isAuthenticated && user ? (
                 <>
                   <p className="truncate px-3 py-2 text-xs text-zinc-500">
                     {user.email}
