@@ -535,6 +535,127 @@ export async function getTopPicks(
 }
 
 
+export type MultibaggerPotentialCategory =
+  | "very_high"
+  | "high"
+  | "moderate"
+  | "low"
+  | "very_low";
+
+export type MultibaggerObservationType =
+  | "positive"
+  | "neutral"
+  | "negative";
+
+export type MultibaggerObservation = {
+  category: string;
+  observationType: MultibaggerObservationType;
+  message: string;
+};
+
+export type MultibaggerPotential = {
+  symbol: string;
+  displaySymbol: string;
+  companyName: string;
+
+  potentialScore: number;
+  potentialCategory: MultibaggerPotentialCategory;
+
+  growthQualityScore: number;
+  financialStrengthScore: number;
+  valuationAttractivenessScore: number;
+  momentumScore: number;
+  riskQualityScore: number;
+  dataCompletenessScore: number;
+
+  marketCap: string | null;
+  revenueGrowth: string | null;
+  earningsGrowth: string | null;
+  returnOnEquity: string | null;
+  debtToEquity: string | null;
+  trailingPe: string | null;
+  priceToBook: string | null;
+
+  observations: MultibaggerObservation[];
+  calculatedAt: string;
+  methodologyVersion: string;
+  disclaimer: string;
+};
+
+export type MultibaggerWeights = {
+  growth: number;
+  financialStrength: number;
+  valuation: number;
+  momentum: number;
+  risk: number;
+};
+
+export type MultibaggerRankingsResponse = {
+  rankings: MultibaggerPotential[];
+  failedSymbols: string[];
+
+  universeSize: number;
+  successfulCount: number;
+  failedCount: number;
+  returnedCount: number;
+  minimumScore: number;
+  resultLimit: number;
+
+  weights: MultibaggerWeights;
+
+  generatedAt: string;
+  cacheExpiresAt: string;
+};
+
+export async function getMultibaggerPotential(
+  displaySymbol: string,
+  technicalPeriod = "1y",
+  interval = "1d",
+  financialPeriod: FinancialStatementPeriod = "annual",
+): Promise<MultibaggerPotential> {
+  const normalizedSymbol =
+    displaySymbol.trim().toUpperCase();
+
+  if (!normalizedSymbol) {
+    throw new Error("Display symbol is required.");
+  }
+
+  const params = new URLSearchParams({
+    interval,
+    technicalPeriod,
+    financialPeriod,
+  });
+
+  return fetchApi<MultibaggerPotential>(
+    `/api/v1/multibagger/${encodeURIComponent(
+      normalizedSymbol,
+    )}?${params.toString()}`,
+    `Unable to analyse Multibagger Potential for ${normalizedSymbol}`,
+  );
+}
+
+export async function getMultibaggerRankings(
+  minimumScore = 0,
+  limit = 10,
+  technicalPeriod = "1y",
+  interval = "1d",
+  financialPeriod: FinancialStatementPeriod = "annual",
+): Promise<MultibaggerRankingsResponse> {
+  const params = new URLSearchParams({
+    minimumScore: String(minimumScore),
+    limit: String(limit),
+    interval,
+    technicalPeriod,
+    financialPeriod,
+  });
+
+  return fetchApi<MultibaggerRankingsResponse>(
+    `/api/v1/multibagger/rankings?${params.toString()}`,
+    "Unable to fetch Multibagger Potential rankings",
+  );
+}
+
+
 export type AuthenticatedUser = {
   id: number;
   email: string;

@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { label: "Markets", href: "/markets" },
   { label: "AI Picks", href: "/ai-picks" },
   { label: "Pulse", href: "/pulse" },
+  { label: "Multibagger", href: "/multibagger" },
   { label: "News", href: "/news" },
   { label: "Pricing", href: "/pricing" },
 ];
