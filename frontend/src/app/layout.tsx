@@ -1,6 +1,15 @@
-import type { Metadata } from "next";
+import type {
+  Metadata,
+  Viewport,
+} from "next";
+import {
+  Geist,
+  Geist_Mono,
+} from "next/font/google";
+
 import { AuthProvider } from "@/auth/AuthProvider";
-import { Geist, Geist_Mono } from "next/font/google";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +23,48 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AlphaEdge AI",
-  description: "AI-powered Indian stock market intelligence platform",
+  title: {
+    default: "AlphaEdge AI",
+    template: "%s | AlphaEdge AI",
+  },
+  description:
+    "Indian stock market analysis, predictions and portfolio intelligence.",
+  applicationName: "AlphaEdge AI",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AlphaEdge",
+  },
+  icons: {
+    icon: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#050505",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -28,8 +77,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="flex min-h-full flex-col">
+        <AuthProvider>
+          {children}
+          <ServiceWorkerRegistration />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -146,7 +146,9 @@ export function StockSearch() {
           onKeyDown={handleKeyDown}
           placeholder="Search stocks, e.g. Reliance or HDFC Bank"
           aria-label="Search Indian stocks"
+          role="combobox"
           aria-expanded={showDropdown}
+          aria-controls="stock-search-results"
           aria-autocomplete="list"
           className="w-full rounded-xl border border-white/10 bg-zinc-950 px-4 py-3 pr-12 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-400/50"
         />
@@ -172,6 +174,7 @@ export function StockSearch() {
 
       {showDropdown && (
         <div
+          id="stock-search-results"
           role="listbox"
           className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-white/10 bg-zinc-950 shadow-2xl"
         >
@@ -189,7 +192,7 @@ export function StockSearch() {
 
           {showNoResults && (
             <div className="px-4 py-4 text-sm text-zinc-500">
-              No stocks found for “{normalizedQuery}”.
+              No stocks found for &quot;{normalizedQuery}&quot;
             </div>
           )}
 

@@ -109,12 +109,29 @@ function getReasonMarkerClasses(
 export default async function StockAnalysis({
   displaySymbol,
 }: StockAnalysisProps) {
+  let analysis;
+
   try {
-    const analysis = await getStockAnalysis(
+    analysis = await getStockAnalysis(
       displaySymbol,
     );
-
+  } catch {
     return (
+      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6">
+        <h2 className="text-xl font-semibold">
+          AlphaEdge outlook
+        </h2>
+
+        <p className="mt-2 text-sm text-zinc-400">
+          The combined stock analysis is temporarily unavailable.
+          Technical and financial sections below may still be
+          available.
+        </p>
+      </section>
+    );
+  }
+
+  return (
       <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 shadow-xl sm:p-8">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
@@ -286,22 +303,7 @@ export default async function StockAnalysis({
           </p>
         </div>
       </section>
-    );
-  } catch {
-    return (
-      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6">
-        <h2 className="text-xl font-semibold">
-          AlphaEdge outlook
-        </h2>
-
-        <p className="mt-2 text-sm text-zinc-400">
-          The combined stock analysis is temporarily unavailable.
-          Technical and financial sections below may still be
-          available.
-        </p>
-      </section>
-    );
-  }
+  );
 }
 
 type AnalysisMetricProps = {

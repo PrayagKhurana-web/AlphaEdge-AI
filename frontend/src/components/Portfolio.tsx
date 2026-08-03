@@ -516,7 +516,9 @@ export default function Portfolio() {
               placeholder="Search Reliance, TCS or HDFC Bank"
               autoComplete="off"
               aria-label="Search stock for portfolio"
+              role="combobox"
               aria-expanded={showSearchDropdown}
+              aria-controls="portfolio-stock-results"
               aria-autocomplete="list"
               className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 pr-10 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-400/50 disabled:cursor-not-allowed disabled:opacity-60"
             />
@@ -543,6 +545,7 @@ export default function Portfolio() {
 
             {showSearchDropdown && (
               <div
+                id="portfolio-stock-results"
                 role="listbox"
                 className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-white/10 bg-zinc-950 shadow-2xl"
               >
@@ -560,7 +563,7 @@ export default function Portfolio() {
 
                 {showNoSearchResults && (
                   <div className="px-4 py-4 text-sm text-zinc-500">
-                    No stocks found for "{normalizedSearchQuery}"
+                    No stocks found for &quot;{normalizedSearchQuery}&quot;
                   </div>
                 )}
 

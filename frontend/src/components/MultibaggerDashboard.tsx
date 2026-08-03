@@ -191,7 +191,42 @@ export default function MultibaggerDashboard() {
   }
 
   useEffect(() => {
-    void loadRankings(50, 10);
+    let isActive = true;
+
+    async function loadInitialRankings(): Promise<void> {
+      setIsRankingLoading(true);
+      setRankingError(null);
+
+      try {
+        const result = await getMultibaggerRankings(
+          50,
+          10,
+        );
+
+        if (isActive) {
+          setRankings(result);
+        }
+      } catch (error) {
+        if (isActive) {
+          setRankings(null);
+          setRankingError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load the rankings.",
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsRankingLoading(false);
+        }
+      }
+    }
+
+    void loadInitialRankings();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   async function handleRankingSubmit(
