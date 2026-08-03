@@ -1,4 +1,4 @@
-"""
+﻿"""
 Application-wide configuration for the AlphaEdge AI backend.
 
 Settings are loaded via pydantic-settings' BaseSettings, which supports
@@ -56,7 +56,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/alphaedge"
+        default=(
+            "mysql+asyncmy://alphaedge_app:"
+            "replace-password@localhost:3306/alphaedge"
+        )
+    )
+
+    cors_allow_origins: str = Field(
+        default="http://localhost:3000"
     )
 
     market_data_request_timeout_seconds: float = Field(default=10.0)
@@ -92,6 +99,24 @@ class Settings(BaseSettings):
     auth_algorithm: str = Field(default="HS256")
     auth_access_token_expire_minutes: int = Field(default=60)
 
+    @field_validator("cors_allow_origins")
+    @classmethod
+    def _validate_cors_allow_origins(
+        cls,
+        value: str,
+    ) -> str:
+        origins = [
+            origin.strip()
+            for origin in value.split(",")
+            if origin.strip()
+        ]
+
+        if not origins:
+            raise ValueError(
+                "cors_allow_origins must contain at least one origin."
+            )
+
+        return ",".join(origins)
     @field_validator("market_data_request_timeout_seconds")
     @classmethod
     def _validate_market_data_request_timeout_positive(cls, value: float) -> float:

@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
@@ -18,5 +18,6 @@ async def test_health_check() -> None:
     assert response.json() == {
         "status": "healthy",
         "service": "AlphaEdge AI API",
-        "version": "0.1.0",
+        "version": "1.0.0",
     }
+
