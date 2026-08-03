@@ -1,6 +1,8 @@
-import AITopPicks from "@/components/AITopPicks";
+﻿import AITopPicks from "@/components/AITopPicks";
 import DashboardAuthGate from "@/components/DashboardAuthGate";
+import { Footer } from "@/components/Footer";
 import Portfolio from "@/components/Portfolio";
+import { Navbar } from "@/components/Navbar";
 import { StockSearch } from "@/components/StockSearch";
 import Watchlist from "@/components/Watchlist";
 import {
@@ -61,7 +63,7 @@ function createMetric(
       key,
       label: fallbackLabel,
       value: "Unavailable",
-      change: "—",
+      change: "â€”",
       numericChange: null,
     };
   }
@@ -228,6 +230,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardAuthGate>
+      <Navbar />
       <main className="min-h-screen bg-black px-6 py-10 text-white sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-3">
@@ -377,6 +380,7 @@ export default async function DashboardPage() {
         </section>
       </div>
       </main>
+      <Footer />
     </DashboardAuthGate>
   );
 }
